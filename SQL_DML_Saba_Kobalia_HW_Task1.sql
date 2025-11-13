@@ -107,6 +107,23 @@ INSERT INTO public.inventory (film_id, store_id, last_update) VALUES
 
 RETURNING *;
 COMMIT;
+--let's see which customers have more than 43 rentals AND more than 43 payments
+WITH payc AS (SELECT customer_id,COUNT (payment_id) AS no_payments FROM public.payment GROUP BY customer_id HAVING COUNT (payment_id)>43  ),
+
+rentalc AS (SELECT customer_id, COUNT(rental_id) as no_rentals FROM public.rental  GROUP BY customer_id HAVING COUNT (rental_id)>43 ORDER BY customer_id)
+SELECT pa.customer_id, no_payments, no_rentals FROM  payc pa LEFT JOIN rentalc ra ON ra.customer_id=pa.customer_id;
+
+--Customer 1 has 64 AND 64, they will do. Let's add me as customer 1
+UPDATE public.customer SET first_name='SABA',last_name='KOBALIA',email='SABAQOBALIA12@gmail.com', last_update=current_date WHERE customer_id=1
+RETURNING *;
+--save changes
+COMMIT;
+
+--Remove any records related to you (as a customer) FROM  all tables except 'Customer' AND 'Inventory'
+DELETE FROM  public.payment WHERE  customer_id=1;
+COMMIT;
+DELETE FROM public.rental WHERE customer_id=1;
+COMMIT;
 
 --create rental entries
 
