@@ -1,21 +1,21 @@
 CREATE DATABASE Subway;
 --right click on Subway and chreate a new schema
-CREATE SCHEMA new_schema;
+CREATE SCHEMA IF NOT EXISTS new_schema;
 
--right click on new_schema and create tables.
-CREATE TABLE new_schema.Stations 
+--right click on new_schema and create tables.
+CREATE TABLE IF NOT EXISTS  new_schema.Stations 
 (station_id serial PRIMARY KEY,
 s_name varchar(20) UNIQUE,
 s_location varchar(50),
 status varchar(10) CHECK (status IN ('Active','Under repair'))
 );
-CREATE TABLE new_schema.Lines
+CREATE TABLE IF NOT EXISTS new_schema.Lines
 (line_id serial PRIMARY KEY,
  l_name varchar (20) UNIQUE,
  route_description text,
  frequency smallint CHECK (frequency>0)
 );
-CREATE TABLE new_schema.Stations_lines (
+CREATE TABLE IF NOT EXISTS new_schema.Stations_lines (
  station_id int NOT NULL,
  line_id int NOT NULL,
  position_in_line smallint,
@@ -28,7 +28,7 @@ CREATE TABLE new_schema.Stations_lines (
 ); -- forgot to add UNIQUE constraint, let's do it now.
 ALTER TABLE new_schema.stations_lines ADD CONSTRAINT composite_key2 UNIQUE (station_id,line_id);
 
-CREATE TABLE new_schema.schedules 
+CREATE TABLE IF NOT EXISTS new_schema.schedules 
 (schedule_id serial PRIMARY KEY,
 departure_station int NOT NULL,
 arrival_station int NOT NULL,
@@ -40,7 +40,7 @@ CONSTRAINT fk_arrival
  FOREIGN KEY (arrival_station) REFERENCES new_schema.stations(station_id)
 ); -- forgot to add UNIQUE constraint, let's do it now.
 ALTER TABLE new_schema.schedules  ADD CONSTRAINT composite_key3 unique (departure_time,departure_station);
-CREATE TABLE new_schema.trains(
+CREATE TABLE IF NOT EXISTS new_schema.trains(
 train_ID serial PRIMARY KEY,
 line_id int NOT NULL,
 capacity smallint CHECK (capacity>0),
@@ -49,14 +49,14 @@ status varchar (10) CHECK (status in('Employed','Stored','Under repair')),
 schedule_id int,
 CONSTRAINT FK_line FOREIGN KEY (line_id) REFERENCES new_schema.lines(line_id)
 );
-CREATE TABLE new_schema.positions (
+CREATE TABLE IF NOT EXISTS new_schema.positions (
 position_id serial PRIMARY KEY,
 position_name varchar (30) UNIQUE,
 position_description varchar(50)
 
 );
 
-CREATE TABLE new_schema.employee (
+CREATE TABLE IF NOT EXISTS new_schema.employee (
 employee_id serial PRIMARY KEY,
 first_name varchar (10),
 last_name varchar (20),
@@ -66,16 +66,25 @@ gender varchar (6) CHECK (gender IN ('Male','Female')),
 CONSTRAINT fk_position FOREIGN KEY (position_id) REFERENCES new_schema.positions (position_id)
 );
 
-CREATE TABLE new_schema.employees_trains (
+CREATE TABLE IF NOT EXISTS new_schema.employees_trains (
 employee_id int NOT NULL,
 train_id int NOT NULL,
 assigned_date date DEFAULT current_date
 ); -- forgot to add UNIQUE constraint, let's do it now.
 ALTER TABLE new_schema.employees_trains ADD CONSTRAINT composite_key UNIQUE (employee_id,train_id);
 
+CREATE TABLE IF NOT EXISTS new_schema.infrastructure (
+infrastructure_id serial PRIMARY KEY,
+infrastructure_type varchar (15),
+i_condition varchar(15) CHECK (condition IN ('Optimal','Suboptimal','Bad','Under repair','Inactive')),
+last_inspected date CHECK (last_inspected < current_date),
+inspected_by int,
+CONSTRAINT fk_inspected FOREIGN KEY (inspected_by) REFERENCES new_schema.employee (employee_id)
+);
 
 
-CREATE TABLE new_schema.maintanence (
+
+CREATE TABLE IF NOT EXISTS new_schema.maintanence (
 maintanence_id serial,
 infrastructure_id int NOT NULL,
 employee_id int NOT NULL,
@@ -86,7 +95,7 @@ CONSTRAINT fk_infrastructure FOREIGN KEY (infrastructure_id) REFERENCES new_sche
 CONSTRAINT fk_employee FOREIGN KEY (employee_id) REFERENCES new_schema.employee (employee_id)
 );
 
-CREATE TABLE new_schema.passengers (
+CREATE TABLE IF NOT EXISTS new_schema.passengers (
 social_number text PRIMARY KEY,
 first_name varchar (15),
 last_name varchar (20),
@@ -95,7 +104,7 @@ gender varchar (6) CHECK (gender IN ('Male','Female'))
 
 );
 
-CREATE TABLE new_schema.tickets(
+CREATE TABLE IF NOT EXISTS new_schema.tickets(
 ticket_type_id serial PRIMARY KEY,
 tt_name varchar (15) UNIQUE,
 price decimal CHECK (price>0),
@@ -103,8 +112,8 @@ longevity smallint CHECK (longevity>0),
 discount decimal CHECK (discount BETWEEN 0 AND 99)
 );
 
-CREATE TABLE new_schema.sales(
-sale_id int PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS new_schema.sales(
+sale_id serial PRIMARY KEY,
 ticket_type_id smallint NOT NULL,
 sale_date date,
 social_number text NOT NULL,
@@ -115,7 +124,7 @@ CONSTRAINT FK_LOCATION FOREIGN KEY (sale_location) REFERENCES new_schema.station
 ); --forgot to add UNIQUE constraint here, let's do it now
 ALTER TABLE  new_schema.sales ADD CONSTRAINT saleun UNIQUE (social_number,sale_date);
 
--add 'record_ts' field to each table using ALTER TABLE statements, set the default value to current_date as instructed by the 8th note in task.
+--add 'record_ts' field to each table using ALTER TABLE statements, set the default value to current_date as instructed by the 8th note in task.
 ALTER TABLE new_schema.employee ADD COLUMN record_ts DATE NOT NULL
 DEFAULT current_date;
 
