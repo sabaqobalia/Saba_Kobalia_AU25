@@ -1,0 +1,29 @@
+task 6
+
+What operations do the following functions perform: film_in_stock, film_not_in_stock, inventory_in_stock, get_customer_balance, inventory_held_by_customer, rewards_report, last_day?
+
+The film_in_stock function takes a film_id and store_id as input, and returns the number of available copies for that film in that store. It uses the inventory table together with the inventory_in_stock function to count how many copies are in stock. The film_not_in_stock function does the opposite — it returns the number of unavailable copies in a specific store, again relying on the inventory_in_stock function. The inventory_in_stock function checks if a particular inventory item is available by determining whether it has never been rented or has been returned, using the rental table. The get_customer_balance function calculates the current balance for a given customer at a specified effective date. It includes rental fees for all previous rentals, one dollar for each day a rental is overdue, the replacement cost if a film is more than twice its rental duration overdue, and subtracts all payments made before the given date. The inventory_held_by_customer function identifies which customer currently has a particular inventory item rented. If the item is in stock, it returns NULL. The rewards_report function generates a list of customers who meet certain spending conditions over the previous month and qualify for a reward; it uses dynamic SQL and temporary tables. The last_day function returns the last day of the month for a given timestamp by calculating the first day of the next month and subtracting one day.
+
+Why does ‘rewards_report’ function return 0 rows? Correct and recreate the function, so that it's able to return rows properly.
+
+The rewards_report function currently returns zero rows because there are no payment records after 2017 in the database. The function dynamically checks for customers' payments over the last three months, so with no recent data, it finds no eligible customers. To fix this, either the date limitation should be adjusted to cover older data or new payments should be added to the database dated in 2024 or later.
+
+Is there any function that can potentially be removed from the dvd_rental codebase? If so, which one and why?
+
+The group_concat function might be unnecessary for this database. It provides a string concatenation of values, which isn’t essential for the core operations of the system, especially if it’s rarely or never used in practice. Additionally, having two separate functions — film_in_stock and film_not_in_stock — when their logic is closely related may be redundant, as this could be merged into a single, more flexible function.
+
+The ‘get_customer_balance’ function describes the business requirements for calculating the client balance. Unfortunately, not all of them are implemented in this function. Try to change function using the requirements from the comments.
+
+The function should correctly handle four specific cases: summing up rental fees for previous rentals, adding one dollar per day for overdue rentals, charging the full replacement cost for items overdue by more than double their rental duration, and subtracting all payments made before the effective date. The updated function you provided addresses all these requirements properly by calculating each amount separately and returning their combined total as the balance.
+
+How do ‘group_concat’ and ‘_group_concat’ functions work? Where are they used?
+
+The group_concat function is a custom aggregate function that performs string concatenation, combining multiple values into a single string with a separator. It uses _group_concat as its internal implementation, which takes two text inputs and returns their concatenated result. it appears that these functions are not actively used anywhere in the database, based on the available schema.
+
+What does ‘last_updated’ function do? Where is it used?
+
+The last_updated function is a trigger function that automatically updates the last_update timestamp column to the current time whenever a row is updated in a table. It ensures the record always reflects the latest modification time. This function is commonly attached to most tables in the database.
+
+What is tmpSQL variable for in ‘rewards_report’ function? Can this function be recreated without EXECUTE statement and dynamic SQL? Why?
+
+The tmpSQL variable in the rewards_report function stores dynamically constructed SQL queries as strings, which are later executed using the EXECUTE statement. This allows the function to build its queries based on runtime conditions, like dates. However, since the structure of the query is known and relatively static, the function could be rewritten without using EXECUTE and dynamic SQL. Removing dynamic SQL would simplify the function, improve readability, and enhance performance, while still achieving the same results.
