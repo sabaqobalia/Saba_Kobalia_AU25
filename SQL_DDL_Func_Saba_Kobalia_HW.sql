@@ -16,7 +16,7 @@ HAVING COUNT(r.rental_id)>0
 ORDER BY revenue DESC);
 
 --Task 2. Create a query language functions
-CREATE OR REPLACE FUNCTION get_sales_revenue_by_category_qtr(p_quarter INT, p_year INT)
+CREATE OR REPLACE FUNCTION get_sales_revenue_by_category_qtr(func_date date)
 RETURNS TABLE(category TEXT, total_revenue NUMERIC)
 LANGUAGE plpgsql
 AS $$
@@ -29,8 +29,8 @@ LEFT JOIN public.inventory i ON i.inventory_id = r.inventory_id
 LEFT JOIN public.film f ON i.film_id = f.film_id
 LEFT JOIN public.film_category fc ON fc.film_id = f.film_id
 LEFT JOIN public.category c ON fc.category_id = c.category_id
-WHERE EXTRACT(YEAR FROM r.rental_date) = p_year
-      AND EXTRACT(QUARTER FROM r.rental_date) = p_quarter
+WHERE EXTRACT(YEAR FROM r.rental_date) = EXTRACT(YEAR FROM func_date)
+      AND EXTRACT(QUARTER FROM r.rental_date) =  EXTRACT(QUARTER FROM func_date)
 GROUP BY c.name
 HAVING SUM(p.amount) > 0
 ORDER BY total_revenue DESC;
@@ -113,12 +113,21 @@ AS $$
 DECLARE lang_id int; new_id int;
 BEGIN
 SELECT language_id INTO lang_id
-FROM public.language WHERE
-name=new_language;
+ FROM public.language WHERE
+ name=new_language;
 IF lang_id IS NULL THEN
-RAISE EXCEPTION 'Language "%" does not exist in table "language"', new_language;
+  INSERT INTO public.lanaguage (name) values (new_language)
+  RETURNING language_id INTO lang_id;
+  RAISE NOTICE 'Language "%" did not exist and was created.', new_language;
 END IF;
-SELECT MAX(film_id)+1 INTO new_id
+IF EXISTS (
+    SELECT 1 FROM public.film
+    WHERE title = new_title
+) THEN
+    RAISE NOTICE 'Movie "%" already exists.', new_title;
+    RETURN;
+END IF;
+SELECT COALESCE(MAX(film_id),0)+1 INTO new_id
 FROM public.film;
 
 INSERT INTO public.film(film_id,title,language_id,rental_rate,rental_duration,replacement_cost) VALUES
