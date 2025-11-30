@@ -1,0 +1,29 @@
+Task 1. Figure out what security precautions are already used in your 'dvd_rental' database.  Prepare description
+
+First, I used command:
+
+SELECT rolname, rolsuper, rolcreaterole, rolcreatedb, rolcanlogin
+FROM pg_roles;
+
+This showed me which user could log in, has superpower privileges and create other roles and databases.
+As I found, only 'postgres' could do these privileges. 
+
+
+The command:
+
+SELECT grantee, privilege_type, table_name 
+FROM information_schema.role_table_grants 
+WHERE table_schema = 'public';
+
+showed which user had what type of privileges and on which table (only postgres had privileges like: INSERT, SELECT, TRUNCATE, TRIGGER...).
+the postgres role has a password secured with the scram-sha-256 hash function. 
+command:
+	select rolname, rolpassword, rolvaliduntil 
+	from pg_authid
+	where rolpassword is not null;
+
+SSL is off, which means that database connections are not encrypted (command: show ssl;)
+
+The default password encryption method is scram-sha-256, which refers to stronger password authentication (recommended).
+command:
+	show password_encryption;
