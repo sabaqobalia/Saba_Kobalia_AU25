@@ -12,15 +12,24 @@ SELECT * FROM public.customer;
 RESET ROLE;
 
 --3.Create a new user group called "rental" and add "rentaluser" to the group.
+DO $$
+BEGIN
+IF NOT EXISTS (
+SELECT 1 FROM pg_roles WHERE rolname = 'rental') THEN
 CREATE ROLE rental;
-GRANT rental TO rentaluser;
+END IF;
+END
+$$;
+
+GRANT rental TO rentaluser
 
 --4.Grant the "rental" group INSERT and UPDATE permissions for the "rental" table. Insert a new row and update one existing row in the "rental" table under that role. 
 GRANT INSERT ON public.rental TO rental;
 GRANT UPDATE ON public.rental TO rental;
-SET ROLE rental;
 INSERT INTO public.rental (rental_date,inventory_id,customer_id, return_date, staff_id) VALUES
-('2005-05-25 00:08:07+04',6,7,'2005-05-28 20:40:33+04',2)
+('2005-05-25 00:08:07+04',6,
+(SELECT customer_id FROM public.customer WHERE UPPER(first_name)='JENNIFER' AND UPPER (last_name)='DAVIS'),
+'2005-05-28 20:40:33+04',2)
 RETURNING *;
 RESET ROLE;
 
@@ -28,7 +37,9 @@ RESET ROLE;
 REVOKE INSERT ON public.rental FROM rental;
 SET ROLE rental;
 INSERT INTO public.rental (rental_date,inventory_id,customer_id, return_date, staff_id) VALUES
-('2005-05-25 00:08:07+04',6,7,'2005-05-28 20:40:33+04',2)
+('2005-05-25 00:08:07+04',6,
+(SELECT customer_id FROM public.customer WHERE UPPER(first_name)='JENNIFER' AND UPPER (last_name)='DAVIS'),
+'2005-05-28 20:40:33+04',2)
 RETURNING *;
 ERROR:  permission denied for table rental 
 
@@ -39,7 +50,13 @@ SELECT customer_id FROM public.payment ORDER BY customer_id DESC;
 --customer 599 has rental and payment history, let's look them up.
 SELECT * FROM public.customer WHERE customer_id=599;
 --His name is Austin Cintron.
+DO $$
+BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'client_austin_cintron') THEN
 CREATE ROLE client_austin_cintron LOGIN PASSWORD 'VOIDVOID999';
+END IF;
+END
+$$;
 
 --TASK 3
 
