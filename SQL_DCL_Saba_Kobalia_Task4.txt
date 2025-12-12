@@ -1,0 +1,21 @@
+1) How can one restrict access to certain columns of a database table?
+
+A user receives access to select columns and denies access to others as demonstrated by this example: GRANT SELECT (first_name, last_name) ON customer TO clients;
+GRANT SELECT (first_name, last_name) ON customer TO clients; 
+The client role cannot query the customer table aside from the first_name and last_name fields.
+
+2) What is the difference between user identification and user authentication?
+
+User identification functions as naming yourself to other people without verification whereas authentication requires proof to demonstrate your identity. Continued access to a real-life scenario requires users to show their identification (password) after the identification process.
+System starts with user identification for obtaining username and successfully authenticated users will be allowed to gain access for performing legitimate operations.
+
+3) What are the recommended authentication protocols for PostgreSQL?
+
+1)using scram-sha-256 or md5 for password hashing 
+2)enabling ssl for certificate based authentication
+
+4) What is proxy authentication in PostgreSQL and what is it for? Why does it make the previously discussed role-based access control easier to implement?
+
+PostgreSQL enables Proxy Authentication that directs one user (the proxy) to authenticate other users (the target). Database management becomes streamlined through a third-party application which controls the access process instead of issuing individual logins to users. The application maintains information security through its ability to determine data visibility. The database administration does not need to deal with multiple role specifications for individual users.
+
+The app (agent between database and user entities) facilitates RBAC implementation because it determines permissions for users rather than generating individual roles for each database user.
