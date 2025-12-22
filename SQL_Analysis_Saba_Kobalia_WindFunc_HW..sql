@@ -44,7 +44,16 @@ FROM cxr
 GROUP BY prod_name;
 
 -- task 3
---task description on learn.epam was very ambigous, but the output matches the sample one provided, so i think i got it.
+WITH top300_98 AS (
+SELECT  channel_desc, cust_id, cust_last_name,cust_first_name,cust_channel_total,
+RANK () OVER (PARTITION BY channel_desc ORDER BY cust_channel_total DESC) AS cust_channel_rank 
+FROM 
+(
+SELECT channel_desc, s.cust_id, cust_last_name,cust_first_name, SUM (amount_sold) AS cust_channel_total
+FROM sh.sales s
+LEFT JOIN sh.channels ch ON s.channel_id=ch.channel_id
+LEFT JOIN sh.customers cu ON cu.cust_id=s.cust_id
+WHERE EXTRACT (YEAR FROM time_id)=1998
 GROUP BY channel_desc, s.cust_id, cust_last_name,cust_first_name)
 ),
 top300_99 AS (
@@ -70,17 +79,24 @@ LEFT JOIN sh.channels ch ON s.channel_id=ch.channel_id
 LEFT JOIN sh.customers cu ON cu.cust_id=s.cust_id
 WHERE EXTRACT (YEAR FROM time_id)=2001
 GROUP BY channel_desc, s.cust_id, cust_last_name,cust_first_name)
+),
+jamebi AS (
+SELECT r01.channel_desc, r01.cust_id, r01.cust_last_name,r01.cust_first_name,
+r01.cust_channel_total + r98.cust_channel_total + r99.cust_channel_total as "cross_year_total",
+r01.cust_channel_rank as "01isranki", r98.cust_channel_rank as "98isranki", r99.cust_channel_rank as "99isranki"
+FROM top300_98 r98 
+INNER JOIN top300_99 r99 ON r98.cust_id=r99.cust_id AND r98.channel_desc=r99.channel_desc
+INNER JOIN top300_01 r01 ON r98.cust_id=r01.cust_id AND r98.channel_desc=r01.channel_desc
 )
 
-SELECT t2.channel_desc,t2.cust_id,t2.cust_last_name,t2.cust_first_name,
-ROUND (t2.cust_channel_total,2) AS "amount_sold"
-FROM top300_98 t1 INNER JOIN top300_99 t2 ON
-t1.cust_id=t2.cust_id AND t1.channel_desc=t2.channel_desc
-INNER JOIN top300_01 t3 ON
-t1.cust_id=t3.cust_id AND t1.channel_desc=t3.channel_desc
-WHERE t1.cust_channel_rank <301 AND
-t2.cust_channel_rank <301 AND
-t3.cust_channel_rank <301;
+SELECT channel_desc,cust_id,cust_last_name,cust_first_name,
+ROUND (cross_year_total,2) AS "amount_sold"
+FROM jamebi 
+WHERE 
+"01isranki" <301 and "98isranki" < 301 and "99isranki"<301
+ORDER BY "amount_sold" DESC
+
+
 
 --task 4
 WITH cxr AS (
@@ -99,4 +115,5 @@ ROUND (SUM (CASE WHEN country_region='Europe' THEN amount_sold ELSE 0 END) OVER 
 FROM cxr
 
 ORDER BY calendar_month_desc, prod_category;
+
 
