@@ -1,0 +1,40 @@
+CREATE SCHEMA IF NOT EXISTS BL_DM;
+
+CREATE TABLE IF NOT EXISTS BL_DM.dim_city 
+(city_id int PRIMARY KEY,
+ city_name varchar (255) NOT NULL DEFAULT 'n.a.',
+ source_id int NOT NULL DEFAULT -1);
+COMMIT;
+
+CREATE TABLE IF NOT EXISTS BL_DM.dim_payment_method (
+payment_method_id int PRIMARY KEY,
+payent_method_name varchar(255) NOT NULL DEFAULT 'n.a.',
+source_id int NOT NULL DEFAULT -1
+);
+COMMIT;
+
+CREATE TABLE IF NOT EXISTS BL_DM.dim_source (
+source_id int PRIMARY KEY,
+source_name varchar (255) NOT NULL DEFAULT 'n.a.',
+source_desc varchar (255) NOT NULL DEFAULT 'n.a.'
+);
+COMMIT;
+
+CREATE TABLE IF NOT EXISTS BL_DM.dim_cashier (
+cashier_surr_id int PRIMARY KEY,
+cashier_src_id varchar (255) NOT NULL DEFAULT 'n.a.',
+start_dt date NOT NULL DEFAULT '1900-1-1',
+end_dt date NOT NULL DEFAULT '9999-12-31',
+is_active boolean NOT NULL DEFAULT TRUE,
+source_id int NOT NULL DEFAULT -1
+);
+COMMIT;
+
+CREATE TABLE IF NOT EXISTS BL_DM.dim_store (
+store_id int PRIMARY KEY,
+store_name varchar (255) NOT NULL DEFAULT 'n.a.',
+city_id int NOT NULL DEFAULT -1,
+is_active boolean NOT NULL DEFAULT TRUE,
+source_id int NOT NULL DEFAULT -1
+);
+COMMIT;
