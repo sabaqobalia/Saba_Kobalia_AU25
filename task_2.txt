@@ -1,0 +1,10 @@
+First I connected to the default postgres database and created a new database named test_db.
+After that I executed the query joining pg_database and pg_tablespace to see where each database is physically stored. The result shows every database, whether it is a template, if connections are allowed, and in which tablespace it resides. The newly created test_db appeared in the list and was stored in the default tablespace pg_default.
+
+I created a new tablespace called mytablespace by preparing a directory on disk and assigning permissions to the postgres service user. After creating it in SQL, I verified its existence using the pg_tablespace system catalog.
+Then I moved the test_db database into this tablespace using ALTER DATABASE ... SET TABLESPACE. After running the query from task 2.1 again, the tablespace column changed from pg_default to mytablespace. I also checked the folder on disk and PostgreSQL created database files inside that directory.
+
+I connected to test_db and created a new schema named labs. Inside this schema I created a table person with columns id and name. Using pg_tables I verified that the table belongs to the labs schema.
+Then I inserted several records into the table and confirmed they were added successfully.
+
+After checking SHOW search_path, I changed it using SET search_path TO labs. This allowed me to insert rows without writing the schema name before the table, because PostgreSQL automatically searched for tables inside the labs schema.
