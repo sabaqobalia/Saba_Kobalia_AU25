@@ -1,7 +1,16 @@
 CREATE SCHEMA IF NOT EXISTS BL_DM;
-CREATE TABLE IF NOT EXISTS BL_DM.DIM_DATE
 
-INSERT INTO dim_date (
+CREATE TABLE IF NOT EXISTS BL_DM.DIM_DATE (
+    transaction_date DATE PRIMARY KEY,
+    day              SMALLINT,
+    month            SMALLINT,
+    month_name       VARCHAR(10),
+    quarter          SMALLINT,
+    year             SMALLINT,
+    weekday          SMALLINT
+);
+
+INSERT INTO BL_DM.DIM_DATE (
     transaction_date,
     day,
     month,
