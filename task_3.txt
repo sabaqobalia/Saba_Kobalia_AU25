@@ -1,0 +1,160 @@
+3.1 TASK 4
+
+First we queried:
+
+select p.id, p.name, p.ctid, p.xmin, p.xmax from person p;
+
+
+and
+
+SELECT t_xmin, t_xmax, t_ctid,
+tuple_data_split('labs.person'::regclass, t_data, t_infomask, t_infomask2, t_bits)
+FROM heap_page_items(get_raw_page('labs.person', 0));
+
+
+At the beginning every row had:
+
+xmin = transaction that inserted the row
+
+xmax = 0 (means row is alive)
+
+each row had a fixed ctid position
+
+This shows a normal visible state — only one version per row.
+
+INSERT INTO person VALUES (4, 'John');
+
+After insert:
+
+We saw a new tuple appears:
+
+xmin = id of the inserting transaction
+
+xmax = 0
+
+new ctid location
+
+No old rows changed, PostgreSQL never edits existing tuples when inserting.
+
+INSERT always creates a new physical row version.
+
+UPDATE person SET name = 'Alex' WHERE id = 2;
+
+After update:
+
+The row was NOT modified in place.
+
+Instead:
+
+Old row:
+
+xmax became the updating transaction id
+
+row becamenot visible to new transactions
+
+New row:
+
+new xmin
+
+xmax = 0
+
+different ctid
+
+So update = DELETE + INSERT internally.
+
+We could also see that the old tuple’s ctid pointed to the new tuple (update chain).
+
+Conclusion: PostgreSQL keeps both versions because of MVCC.
+
+DELETE FROM person WHERE id = 3;
+
+After delete:
+
+The row still physically existed in the page.
+
+But:
+
+xmax now contained the deleting transaction id
+
+Meaning:
+The row is dead but not removed.
+delete only marks tuple as invisible, not removed.
+
+INSERT INTO person VALUES(999, 'Test');
+
+A new row appeared normally:
+
+xmin = inserting transaction
+
+xmax = 0
+
+DELETE FROM person WHERE id = 999;
+
+Immediately after delete:
+
+The row still existed physically but:
+
+xmax filled with deleting transaction id
+
+So we had a dead tuple.
+
+
+3.2 TASK 5 
+We again checked page contents using:
+
+SELECT t_xmin, t_xmax, t_ctid,
+tuple_data_split('labs.person'::regclass, t_data, t_infomask, t_infomask2, t_bits)
+FROM heap_page_items(get_raw_page('labs.person', 0));
+
+
+At this moment many tuples had xmax filled — meaning dead tuples existed.
+
+1) vacuum labs.person;
+
+After running vacuum:
+
+
+Dead tuples were still visible in page structure, BUT marked reusable internally.
+
+
+
+tuples not removed physically
+
+space became reusable
+
+CTIDs did not change
+
+So table size stayed same but PostgreSQL can overwrite dead rows later.
+
+Conclusion: VACUUM cleans logically, not physically.
+
+2) INSERT INTO person VALUES (5, 'Sarah');
+
+After inserting Sarah,
+
+Instead of creating a new page slot,
+PostgreSQL reused one of the previously deleted tuple locations.
+
+I noticed
+
+ctid reused a position that previously belonged to a deleted row
+
+Conclusion: vacuum allows space reuse.
+
+3) vacuum full labs.person;
+
+After VACUUM FULL:
+
+Major change:
+
+dead tuples disappeared completely
+
+CTIDs changed for almost all rows
+
+table became compact
+
+update chains gone
+
+This happened, because PostgreSQL rewrote the whole table.
+
+VACUUM FULL physically rebuilds the table and removes unnessecary info from previous changes.
