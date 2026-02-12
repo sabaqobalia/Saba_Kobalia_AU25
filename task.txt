@@ -1,0 +1,57 @@
+5. after changing isolation lever to repeatable read, what changed in our case is that even if we commit the transaction that modified data, the second transactions only sees the snapshot from the moment the latter began.
+so, for example when session two deleted the first row, session one didn't see the row with xmax = [txid of session], it saw the  'not-deleted' version, which is xmax = 0.
+
+6. cause a serialization anomaly
+CREATE TABLE employee ("id" serial, "name" varchar, status varchar,gender varchar(1));
+INSERT INTO  employee ("name",status,gender) VALUES 
+('bob','not fired','M'),
+('guy','not fired','M'),
+('peggy','not fired','F'),
+('joan','not fired','F');
+COMMIT;
+
+now start 2 sessions.
+
+session 1:
+begin;
+select txid_current();
+insert into employee ("name",status,gender) values
+('jumbo','not fired','M');
+SELECT COUNT (*) from employee where
+upper(gender) = 'F';
+commit;
+
+session 2:
+begin;
+select txid_current();
+insert into employee ("name",status,gender) values
+('lola','not fired','F');
+SELECT COUNT (*) from employee where
+upper(gender) = 'M';
+COMMIT
+
+
+what happens here is that session 1 doesn't see that there is a 3rd female and session 2 doesnt see the 3rd male.
+if session 1 completed before session 2 started, session 2 would be able to see the new employee and vise versa. hence, seriallization anomaly is present.
+
+but, when we try the same operations with level seriallizable, after we commit one of the sessions, we get error:
+ERROR:  could not serialize access due to read/write dependencies among transactions
+Reason code: Canceled on identification as a pivot, during conflict out checking. 
+
+SQL state: 40001
+Detail: Reason code: Canceled on identification as a pivot, during conflict out checking.
+Hint: The transaction might succeed if retried.
+
+this demonstrates that this level truly avoids this data error.
+
+7. lost update anomally
+drop table if exists employee;
+create table employee ("id" serial, "name" varchar, status varchar,salary int);
+insert into employee ("name",status,salary) values
+('boba','not fired','700');
+commit;
+
+now start two sessions where in both we update salary and increase it by 100.
+after adding 100 in session one, we get no error.
+but after addin 100 in session two, query keeps running for minutes and doesn't seem to stop.
+this signals the user that something is wrong, but at this isolation level, it isn't practical to fail a query and not give an error message to help the user find the problem.
