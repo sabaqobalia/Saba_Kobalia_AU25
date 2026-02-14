@@ -1,0 +1,2 @@
+we can see that in the unlogged table, inserting is much faster, and the difference grows with the amount of data. this is obviously because unlogged table doesn't spend time writing WALs.
+(sc_1 to sc_4)

@@ -1,0 +1,38 @@
+after creating the table and filling it with data:
+
+INSERT INTO test_index(num, load_date)
+SELECT random(), x
+FROM generate_series('2017-01-01 0:00'::timestamptz,
+'2021-12-31 23:59:59'::timestamptz, '10 seconds'::interval) x;
+
+the table size is 666 mb.
+
+the query
+
+SELECT date_trunc('year', load_date), max(num)
+FROM test_index
+WHERE load_date BETWEEN '2021-09-01 0:00' AND '2021-10-31 11:59:59'
+GROUP BY 1
+ORDER BY 1;
+
+takes 12.66 seconds to complete (sc_10).
+
+let's create b-tree index:
+
+CREATE INDEX idx_test_index_load_date
+ON labs.test_index USING btree (load_date);
+
+the query now takes 0.3 seconds to complete, which is a significantly smaller time compared to before. (sc_11)
+the index size is 338MB (sc_12)
+
+we drop the index and create new one, brin this time.
+
+CREATE INDEX idx_test_index_load_date_brin
+ON labs.test_index USING BRIN (load_date);
+
+the select query now takes 0.277 seconds to complete, which is 7.6 % decrease (sc_13).
+the index size is now 40 kb, which is significantly smaller compared to b-tree (sc_14).
+
+the query runs slightly faster on the brin index because brin is designed for large, sequentially ordered datasets like this table.
+even though b-tree indexes provide fast lookups for range queries, the data in this table is naturally ordered by timestamp. 
+brin can skip large blocks of irrelevant pages efficiently, using minimal memory, memory usage

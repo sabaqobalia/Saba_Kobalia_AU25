@@ -1,0 +1,20 @@
+after creating the table and filling it with data, its size is 652 MB (sc_15)
+
+the query
+SELECT * FROM test_index WHERE t_hash LIKE '%ceea167a5a%';
+takes 724 msec to complete (sc_16)
+
+create gist index:
+
+CREATE EXTENSION pg_trgm;
+CREATE INDEX idx_text_index_gist ON test_index USING gist(t_hash
+gist_trgm_ops);
+this query took almost 5 minutes and is 1769 mb in size (sc_17)
+but the same select now takes more than 1.5 secs to complete, pretty big increase in time.
+drop this index and create gin:
+CREATE INDEX idx_text_index_gin ON test_index USING gin (t_hash
+gin_trgm_ops);
+this takes 1min 25 secs (sc_18) and the size is 600 mb (sc_20)
+but the SELECT query now takes 68 msec(sc_19), a huge decrease from GIST and no index.
+
+GiST is optimized for similarity or nearest-neighbor searches, not general substring matches, so it's less useful here.
