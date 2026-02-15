@@ -1,0 +1,68 @@
+create b-tree index:
+CREATE INDEX idx_test_inserts_load_date
+ON labs.test_inserts USING btree (load_date);
+
+fill it:
+
+INSERT into test_inserts (num,load_date)
+SELECT num, load_date
+FROM labs.test_index_plan;
+
+takes significantly more times than it intially took to fill 'test_index_plan', because system is not only filling the table,
+it is also updating b-tree index after every row.
+
+2.2 TASK 4 COPY COMMAND
+
+COPY labs.test_index_plan TO
+'D:\sadesktopo\EPAM\stage 2\dwh and etl\task 4\test_index_plan.csv' DELIMITER ',' CSV HEADER;
+takes 7.883 seconds
+
+
+2.
+we use copy to only isert data we need to a csv file.
+COPY
+(SELECT * FROM
+labs.test_index_plan
+where load_date between '2021-09-01 0:00' AND '2021-09-01 11:59:59') TO
+'D:\sadesktopo\EPAM\stage 2\dwh and etl\task 4\test_index_plan_short.csv' DELIMITER ',' CSV HEADER;
+
+takes 601 msecs.
+
+3. Create new table:
+CREATE TABLE labs.test_copy (
+num float NOT NULL,
+load_date timestamptz NOT NULL
+);
+
+4. create b tree index
+
+CREATE INDEX b_tree_test_copy on labs.test_copy
+using btree (load_date);
+
+5. COPY into test_copy by using test_index_plan.csv file.
+
+COPY labs.test_index_plan FROM 'D:/sadesktopo/EPAM/stage 2/dwh and etl/task 4/test_index_plan.csv' 
+WITH (FORMAT csv, HEADER true, DELIMITER ',');
+
+this takes x7 more time.
+same reason - system needs to update not only the table, but the index as welll.
+
+
+22.3 TASK 5 UPSERT
+INSERT INTO labs.emp VALUES
+
+
+
+(1, 'SMITH', 'MANAGER', 13, '01-DEC-21'),
+(14, 'KELLY', 'CLERK', 1, '01-DEC-21'),
+(15,'HANNAH', 'CLERK', 1 ,'01-DEC-21'),
+(11, 'ADAMS', 'SALESMAN', 8, '01-DEC-21'),
+(4, 'JONES' ,'ANALIST', 9, '01-DEC-21')
+ON CONFLICT (empno)
+DO UPDATE
+SET job= EXCLUDED.job,
+	hiredate = EXCLUDED.hiredate
+RETURNING *
+
+some id-s were already there, so they are updated. (sc_8)
+
