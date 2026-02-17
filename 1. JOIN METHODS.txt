@@ -1,0 +1,88 @@
+1.1. TASK 1: NESTED LOOP JOIN
+
+explain
+SELECT * FROM test_joins_a a, test_joins_b b
+WHERE a.id1 > b.id1;
+
+The query uses a nested loop join because the join condition is an inequality.
+it materializes rows from test_join_b, so it can compare it to the current row from 'a' multiple times.
+(sc_1)
+
+explain
+SELECT *
+FROM test_joins_a a
+CROSS JOIN test_joins_b b;
+
+same thing in execution, only removes the filter.
+
+
+1.2 TASK 2: HASH JOIN
+
+1.Rewrite SELECT to instruct the planner to use HASH JOIN method:
+SET enable_nestloop = off;
+SET enable_mergejoin = off;
+
+EXPLAIN
+SELECT *
+FROM test_joins_a a
+JOIN test_joins_b b
+  ON a.id1 = b.id1;
+
+2.Create query with SEMI JOIN between tables to get HASH SEMI JOIN in the plan.
+
+SET enable_nestloop = off;
+SET enable_mergejoin = off;
+
+EXPLAIN
+SELECT *
+FROM test_joins_a a
+WHERE a.id1 IN (
+    SELECT b.id1
+    FROM test_joins_b b
+);
+
+3.Set enable_hashjoin to off and recheck plan. Switch on enable_hashjoin
+
+SET enable_hashjoin = off
+
+EXPLAIN
+SELECT *
+FROM test_joins_a a
+WHERE a.id1 IN (
+    SELECT b.id1
+    FROM test_joins_b b
+);
+
+the plan is now Nested semi loop join, because it is not fully "forbidden" it is just disencouraged.
+
+1.3 TASK 3: MERGE JOIN
+
+1.Using tables test_joins_a and test_joins_b create a query which is use MERGE JOIN as a join
+method.
+
+first, we need to sort both tables on id, to make the merge join actually practical
+
+CREATE INDEX idx_a_id1 ON test_joins_a(id1);
+CREATE INDEX idx_b_id1 ON test_joins_b(id1);
+
+now, disencourage other options
+
+SET enable_hashjoin = off;
+SET enable_nestloop = off;
+
+finally, run the query:
+
+EXPLAIN
+SELECT *
+FROM test_joins_a a
+JOIN test_joins_b b
+  ON a.id1 = b.id1;
+
+
+2. Set enable_mergejoin to off and recheck plan. Switch on enable_mergejoin.
+
+SET enable_mergejoin = OFF
+again, when all three are set to off, nestedloop becomes the choice.(sc_2)
+)
+
+
