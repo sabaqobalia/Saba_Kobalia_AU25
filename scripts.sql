@@ -264,48 +264,49 @@ FROM assign_id a
 WHERE c.city_name = a.city_name;
 
 
-CREATE TABLE IF NOT EXISTS bl_cl.store (
+CREATE TABLE IF NOT EXISTS bl_cl.map_store (
 store_id int, store_name varchar, store_city varchar, source_table varchar,
 source_system varchar
 );
 
-INSERT INTO bl_cl.store (store_name,store_city,source_table, source_system)
+INSERT INTO bl_cl.map_store (store_name,store_city,source_table, source_system)
 SELECT DISTINCT store_name, city, 'src_source1','sa_source1'
 FROM sa_source1.src_source1;
 
-INSERT INTO bl_cl.store (store_name,store_city,source_table, source_system)
+INSERT INTO bl_cl.map_store (store_name,store_city,source_table, source_system)
 SELECT DISTINCT store_name, city, 'src_source2','sa_source2'
 FROM sa_source2.src_source2;
 
 WITH assign_id AS (
 SELECT store_name, store_city,
 DENSE_RANK () OVER (ORDER BY store_name, store_city) AS surr_id
-FROM bl_cl.store
+FROM bl_cl.map_store
 )
-UPDATE bl_cl.store s
+UPDATE bl_cl.map_store s
 SET store_id = surr_id 
 FROM assign_id a
 WHERE s.store_name = a.store_name
 AND s.store_city = a.store_city;
 
-CREATE TABLE IF NOT EXISTS bl_cl.payment_method (
+CREATE TABLE IF NOT EXISTS bl_cl.map_payment_method (
 payment_method_id int, pm_name varchar, source_table varchar, source_system varchar
 );
 
-INSERT INTO  bl_cl.payment_method (pm_name,source_table,source_system)
+INSERT INTO  bl_cl.map_payment_method (pm_name,source_table,source_system)
 SELECT DISTINCT payment_method, 'src_source1', 'sa_source1' 
 FROM sa_source1.src_source1;
 
-INSERT INTO  bl_cl.payment_method (pm_name,source_table,source_system)
+INSERT INTO  bl_cl.map_payment_method (pm_name,source_table,source_system)
 SELECT DISTINCT payment_method, 'src_source2', 'sa_source2' 
 FROM sa_source2.src_source2
 
 WITH assign_id AS (
 SELECT pm_name,
 DENSE_RANK () OVER (ORDER BY pm_name) AS pm_id
-FROM  bl_cl.payment_method
+FROM  bl_cl.map_payment_method
 )
-UPDATE  bl_cl.payment_method p
+UPDATE  bl_cl.map_payment_method p
 SET payment_method_id = a.pm_id
 FROM assign_id a
 WHERE p.pm_name = a.pm_name
+
