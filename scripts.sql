@@ -342,7 +342,7 @@ WHERE s.store_name = a.store_name
 
 CREATE TABLE IF NOT EXISTS bl_cl.map_payment_method (
 payment_method_id int, pm_name varchar, source_table varchar, source_system varchar,
-CONSTRAINT UNIQUE (pm_name , source_table , source_system)
+CONSTRAINT unique_payment_method UNIQUE (pm_name , source_table , source_system)
 );
 
 INSERT INTO  bl_cl.map_payment_method (pm_name,source_table,source_system)
@@ -373,6 +373,7 @@ UPDATE BL_CL.MAP_PAYMENT_METHOD p
 SET payment_method_id = a.new_id
 FROM assign a
 WHERE p.pm_name = a.pm_name;
+
 
 
 
