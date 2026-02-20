@@ -186,18 +186,23 @@ cashier_src_id varchar,
 cashier_gender varchar,
 cashier_birthday DATE,
 source_table varchar,
-source_system varchar
+source_system varchar,
+CONSTRAINT unique_cashiers UNIQUE (cashier_src_id,source_table, source_system)
 );
 
 INSERT INTO BL_CL.MAP_CASHIER (cashier_src_id ,cashier_gender ,
 cashier_birthday ,source_table ,source_system )
 SELECT DISTINCT cashier_id, cashier_gender, cashier_birthday ::date, 'src_source1','sa_source1'
-FROM sa_source1.src_source1;
+FROM sa_source1.src_source1
+ON CONFLICT (cashier_src_id, source_table, source_system)
+DO NOTHING;
 
 INSERT INTO BL_CL.MAP_CASHIER (cashier_src_id ,cashier_gender ,
 cashier_birthday ,source_table ,source_system )
 SELECT DISTINCT cashier_id, cashier_gender, cashier_birthday ::date, 'src_source2','sa_source2'
-FROM sa_source2.src_source2;
+FROM sa_source2.src_source2
+ON CONFLICT (cashier_src_id, source_table, source_system)
+DO NOTHING;
 
 --now let's give them surrogate IDs
 
@@ -218,18 +223,21 @@ customer_src_id varchar,
 customer_gender varchar,
 customer_birthday DATE,
 source_table varchar,
-source_system varchar
+source_system varchar,
+CONSTRAINT unique_customer UNIQUE (customer_src_id, source_system, source_table)
 );
 
 INSERT INTO BL_CL.MAP_Customer (customer_src_id ,customer_gender ,
 customer_birthday ,source_table ,source_system )
 SELECT DISTINCT customer_id, customer_gender, customer_birthday ::date, 'src_source1','sa_source1'
-FROM sa_source1.src_source1;
+FROM sa_source1.src_source1
+ON CONFLICT (customer_src_id, source_system, source_table) DO NOTHING;
 
 INSERT INTO BL_CL.MAP_Customer (customer_src_id ,customer_gender ,
 customer_birthday ,source_table ,source_system )
 SELECT DISTINCT customer_id, customer_gender, customer_birthday ::date, 'src_source2','sa_source2'
-FROM sa_source2.src_source2;
+FROM sa_source2.src_source2
+ON CONFLICT (customer_src_id, source_system, source_table) DO NOTHING;
 
 
 WITH assign_id AS (
@@ -243,15 +251,18 @@ FROM assign_id a
 WHERE c.customer_src_id = a.customer_src_id;
 
 CREATE TABLE IF NOT EXISTS bl_cl.map_city (city_id int, city_name varchar,source_table varchar,
-source_system varchar);
+source_system varchar,
+CONSTRAINT unique_city UNIQUE(city_name,source_table,source_system));
 
 INSERT INTO bl_cl.map_city  (city_name ,source_table ,
 source_system )
-SELECT DISTINCT city, 'src_source1', 'sa_source1' FROM sa_source1.src_source1;
+SELECT DISTINCT city, 'src_source1', 'sa_source1' FROM sa_source1.src_source1
+ON CONFLICT (city_name,source_table,source_system) DO NOTHING;
 
 INSERT INTO bl_cl.map_city  (city_name ,source_table ,
 source_system )
-SELECT DISTINCT city, 'src_source2', 'sa_source2' FROM sa_source2.src_source2;
+SELECT DISTINCT city, 'src_source2', 'sa_source2' FROM sa_source2.src_source2
+ON CONFLICT (city_name,source_table,source_system) DO NOTHING;
 
 WITH assign_id AS (
 SELECT city_name,
@@ -266,16 +277,19 @@ WHERE c.city_name = a.city_name;
 
 CREATE TABLE IF NOT EXISTS bl_cl.map_store (
 store_id int, store_name varchar, store_city varchar, source_table varchar,
-source_system varchar
+source_system varchar,
+CONSTRAINT unique_store UNIQUE (store_name , store_city , source_table ,source_system)
 );
 
 INSERT INTO bl_cl.map_store (store_name,store_city,source_table, source_system)
 SELECT DISTINCT store_name, city, 'src_source1','sa_source1'
-FROM sa_source1.src_source1;
+FROM sa_source1.src_source1
+ON CONFLICT (store_name , store_city , source_table ,source_system) DO NOTHING;
 
 INSERT INTO bl_cl.map_store (store_name,store_city,source_table, source_system)
 SELECT DISTINCT store_name, city, 'src_source2','sa_source2'
-FROM sa_source2.src_source2;
+FROM sa_source2.src_source2
+ON CONFLICT (store_name , store_city , source_table ,source_system) DO NOTHING;
 
 WITH assign_id AS (
 SELECT store_name, store_city,
@@ -289,16 +303,19 @@ WHERE s.store_name = a.store_name
 AND s.store_city = a.store_city;
 
 CREATE TABLE IF NOT EXISTS bl_cl.map_payment_method (
-payment_method_id int, pm_name varchar, source_table varchar, source_system varchar
+payment_method_id int, pm_name varchar, source_table varchar, source_system varchar,
+CONSTRAINT UNIQUE (pm_name , source_table , source_system)
 );
 
 INSERT INTO  bl_cl.map_payment_method (pm_name,source_table,source_system)
 SELECT DISTINCT payment_method, 'src_source1', 'sa_source1' 
-FROM sa_source1.src_source1;
+FROM sa_source1.src_source1
+ON CONFLICT (pm_name , source_table , source_system) DO NOTHING;
 
 INSERT INTO  bl_cl.map_payment_method (pm_name,source_table,source_system)
 SELECT DISTINCT payment_method, 'src_source2', 'sa_source2' 
 FROM sa_source2.src_source2
+ON CONFLICT (pm_name , source_table , source_system) DO NOTHING;
 
 WITH assign_id AS (
 SELECT pm_name,
@@ -309,4 +326,5 @@ UPDATE  bl_cl.map_payment_method p
 SET payment_method_id = a.pm_id
 FROM assign_id a
 WHERE p.pm_name = a.pm_name
+
 
