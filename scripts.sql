@@ -206,14 +206,24 @@ DO NOTHING;
 
 --now let's give them surrogate IDs
 
-WITH assign_id AS (
-SELECT cashier_src_id,
-	   DENSE_RANK () OVER (ORDER BY cashier_src_id) AS surr_id
-FROM bl_cl.map_cashier
+WITH max_id AS (
+    SELECT COALESCE(MAX(cashier_surr_id), 0) AS last_id
+    FROM BL_CL.MAP_CASHIER
+),
+new_cashiers AS (
+    SELECT mc.*
+    FROM BL_CL.MAP_CASHIER mc
+    WHERE mc.cashier_surr_id IS NULL
+),
+assign AS (
+    SELECT 
+        nc.cashier_src_id,
+        row_number() OVER (ORDER BY nc.cashier_src_id) + max_id.last_id AS new_id
+    FROM new_cashiers nc, max_id
 )
-UPDATE bl_cl.map_cashier c
-SET cashier_surr_id = a.surr_id
-FROM assign_id a
+UPDATE BL_CL.MAP_CASHIER c
+SET cashier_surr_id = a.new_id
+FROM assign a
 WHERE c.cashier_src_id = a.cashier_src_id;
 
 
@@ -240,14 +250,24 @@ FROM sa_source2.src_source2
 ON CONFLICT (customer_src_id, source_system, source_table) DO NOTHING;
 
 
-WITH assign_id AS (
-SELECT customer_src_id,
-DENSE_RANK () OVER (ORDER BY customer_src_id) AS surr_id
-FROM bl_cl.map_customer
+WITH max_id AS (
+    SELECT COALESCE(MAX(customer_surr_id), 0) AS last_id
+    FROM BL_CL.MAP_CUSTOMER
+),
+new_customers AS (
+    SELECT *
+    FROM BL_CL.MAP_CUSTOMER
+    WHERE customer_surr_id IS NULL
+),
+assign AS (
+    SELECT 
+        nc.customer_src_id,
+        row_number() OVER (ORDER BY nc.customer_src_id) + max_id.last_id AS new_id
+    FROM new_customers nc, max_id
 )
-UPDATE BL_CL.MAP_Customer c
-SET customer_surr_id = a.surr_id
-FROM assign_id a
+UPDATE BL_CL.MAP_CUSTOMER c
+SET customer_surr_id = a.new_id
+FROM assign a
 WHERE c.customer_src_id = a.customer_src_id;
 
 CREATE TABLE IF NOT EXISTS bl_cl.map_city (city_id int, city_name varchar,source_table varchar,
@@ -264,14 +284,23 @@ source_system )
 SELECT DISTINCT city, 'src_source2', 'sa_source2' FROM sa_source2.src_source2
 ON CONFLICT (city_name,source_table,source_system) DO NOTHING;
 
-WITH assign_id AS (
-SELECT city_name,
-DENSE_RANK () OVER (ORDER BY city_name) AS surr_id
-FROM bl_cl.map_city
+WITH max_id AS (
+    SELECT COALESCE(MAX(city_id), 0) AS last_id
+    FROM BL_CL.MAP_CITY
+),
+new_cities AS (
+    SELECT *
+    FROM BL_CL.MAP_CITY
+    WHERE city_id IS NULL
+),
+assign AS (
+    SELECT nc.city_name,
+           row_number() OVER (ORDER BY nc.city_name) + max_id.last_id AS new_id
+    FROM new_cities nc, max_id
 )
-UPDATE bl_cl.map_city c
-SET city_id = a.surr_id
-FROM assign_id a
+UPDATE BL_CL.MAP_CITY c
+SET city_id = a.new_id
+FROM assign a
 WHERE c.city_name = a.city_name;
 
 
@@ -291,16 +320,25 @@ SELECT DISTINCT store_name, city, 'src_source2','sa_source2'
 FROM sa_source2.src_source2
 ON CONFLICT (store_name , store_city , source_table ,source_system) DO NOTHING;
 
-WITH assign_id AS (
-SELECT store_name, store_city,
-DENSE_RANK () OVER (ORDER BY store_name, store_city) AS surr_id
-FROM bl_cl.map_store
+WITH max_id AS (
+    SELECT COALESCE(MAX(store_id), 0) AS last_id
+    FROM BL_CL.MAP_STORE
+),
+new_stores AS (
+    SELECT *
+    FROM BL_CL.MAP_STORE
+    WHERE store_id IS NULL
+),
+assign AS (
+    SELECT nc.store_name, nc.store_city,
+           row_number() OVER (ORDER BY nc.store_name, nc.store_city) + max_id.last_id AS new_id
+    FROM new_stores nc, max_id
 )
-UPDATE bl_cl.map_store s
-SET store_id = surr_id 
-FROM assign_id a
+UPDATE BL_CL.MAP_STORE s
+SET store_id = a.new_id
+FROM assign a
 WHERE s.store_name = a.store_name
-AND s.store_city = a.store_city;
+  AND s.store_city = a.store_city;
 
 CREATE TABLE IF NOT EXISTS bl_cl.map_payment_method (
 payment_method_id int, pm_name varchar, source_table varchar, source_system varchar,
@@ -317,14 +355,24 @@ SELECT DISTINCT payment_method, 'src_source2', 'sa_source2'
 FROM sa_source2.src_source2
 ON CONFLICT (pm_name , source_table , source_system) DO NOTHING;
 
-WITH assign_id AS (
-SELECT pm_name,
-DENSE_RANK () OVER (ORDER BY pm_name) AS pm_id
-FROM  bl_cl.map_payment_method
+WITH max_id AS (
+    SELECT COALESCE(MAX(payment_method_id), 0) AS last_id
+    FROM BL_CL.MAP_PAYMENT_METHOD
+),
+new_pm AS (
+    SELECT *
+    FROM BL_CL.MAP_PAYMENT_METHOD
+    WHERE payment_method_id IS NULL
+),
+assign AS (
+    SELECT nc.pm_name,
+           row_number() OVER (ORDER BY nc.pm_name) + max_id.last_id AS new_id
+    FROM new_pm nc, max_id
 )
-UPDATE  bl_cl.map_payment_method p
-SET payment_method_id = a.pm_id
-FROM assign_id a
-WHERE p.pm_name = a.pm_name
+UPDATE BL_CL.MAP_PAYMENT_METHOD p
+SET payment_method_id = a.new_id
+FROM assign a
+WHERE p.pm_name = a.pm_name;
+
 
 
