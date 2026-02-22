@@ -72,7 +72,7 @@ COMMIT;
 
 
 CREATE TABLE IF NOT EXISTS BL_3NF.ce_cashier
-(cashier_surr_id int PRIMARY KEY,
+(cashier_surr_id int NOT NULL,
 cashier_src_id varchar NOT NULL,
 cashier_gender_id int NOT NULL, 
 birthday date NOT NULL, 
@@ -81,6 +81,7 @@ source_entity varchar NOT NULL,
 source_system varchar NOT NULL,
 insert_dt date NOT NULL,
 update_dt date NOT NULL,
+CONSTRAINT unique_cashier UNIQUE(cashier_surr_id,start_dt)
 CONSTRAINT cashier_source_fk FOREIGN KEY (source_id) REFERENCES BL_3NF.ce_source (source_id),
 CONSTRAINT cashier_gender_fk FOREIGN KEY (cashier_gender_id) REFERENCES BL_3NF.ce_gender (gender_id));
 
@@ -101,26 +102,24 @@ CREATE TABLE IF NOT EXISTS BL_3NF.ce_store (
 store_id int PRIMARY KEY,
 store_name varchar,
 city_id int,
-is_active boolean,
 source_id varchar NOT NULL,
 source_entity varchar NOT NULL,
 source_system varchar NOT NULL,
-start_dt date NOT NULL,
-end_dt date NOT NULL,
-update_dt date NOT NULL);
+update_dt date NOT NULL,
+insert_dt date NOT NULL,
+CONSTRAINT store_city_fk FOREIGN KEY (city_id) REFERENCES BL_3NF.ce_city (city_id),
+CONSTRAINT store_source_fk FOREIGN KEY (source_id) REFERENCES BL_3NF.ce_source (source_id));
 
 INSERT INTO BL_3NF.ce_store (
 store_id ,
 store_name ,
 city_id ,
-is_active ,
 source_id ,
 source_entity,
 source_system ,
-start_dt ,
-end_dt,
+insert_dt ,
 update_dt )
-VALUES (-1,'n.a',-1, TRUE,-1,'n.a','n.a','1900-1-1','1900-1-1','1900-1-1');
+VALUES (-1,'n.a',-1,-1,'n.a','n.a','1900-1-1','1900-1-1');
 COMMIT;
 
 CREATE TABLE IF NOT EXISTS BL_3NF.ce_transactions (
@@ -428,6 +427,7 @@ TRUE
 FROM last_stores
 ON CONFLICT (store_id,cashier_surr_id,start_dt) DO NOTHING;
 COMMIT;
+
 
 
 
