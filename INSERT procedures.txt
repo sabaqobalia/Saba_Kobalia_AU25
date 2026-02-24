@@ -1,0 +1,373 @@
+-procedure for inserting cities, using composite type and upsert.
+CREATE TYPE bl_cl.city_dm_type AS (
+    city_id int,
+    city_name varchar,
+    source_id int,
+    source_system varchar,
+    source_entity varchar,
+    insert_dt date,
+    update_dt date
+);
+
+CREATE OR REPLACE PROCEDURE bl_cl.load_dim_city()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    rec bl_cl.city_dm_type;
+    cur REFCURSOR;
+    v_total_rows int := 0;
+    v_rows int;
+    v_source_id int;
+BEGIN
+
+    SELECT source_id
+    INTO v_source_id
+    FROM bl_dm.dim_source
+    WHERE source_entity = 'ce_city';
+
+    OPEN cur FOR
+        SELECT
+            city_id,
+            city_name,
+            v_source_id,
+            'bl_3nf',
+            'ce_city',
+            current_date,
+            current_date
+        FROM bl_3nf.ce_city;
+
+    LOOP
+        FETCH cur INTO rec;
+        EXIT WHEN NOT FOUND;
+
+        INSERT INTO bl_dm.dim_city (
+            city_id,
+            city_name,
+            source_id,
+            source_system,
+            source_entity,
+            insert_dt,
+            update_dt
+        )
+        VALUES (
+            rec.city_id,
+            rec.city_name,
+            rec.source_id,
+            rec.source_system,
+            rec.source_entity,
+            rec.insert_dt,
+            rec.update_dt
+        )
+        ON CONFLICT (city_id)
+        DO UPDATE SET
+            city_name = EXCLUDED.city_name,
+            update_dt = current_date;
+
+        GET DIAGNOSTICS v_rows = ROW_COUNT;
+        v_total_rows := v_total_rows + v_rows;
+
+    END LOOP;
+
+    CALL bl_cl.log_event('load_dim_city',v_total_rows,'dim_city loaded');
+
+END;
+$$;
+
+-- procedure to load dim_store
+
+CREATE OR REPLACE PROCEDURE bl_cl.load_dim_store()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    rec RECORD;
+    cur REFCURSOR;
+    v_total_rows int := 0;
+    v_rows int;
+    v_source_id int;
+BEGIN
+
+    SELECT source_id
+    INTO v_source_id
+    FROM bl_3nf.ce_source
+    WHERE source_entity = 'ce_store';
+
+    OPEN cur FOR
+        SELECT
+            store_id,
+            store_name,
+            city_id,
+            current_date AS insert_dt
+        FROM bl_3nf.ce_store;
+
+    LOOP
+        FETCH cur INTO rec;
+        EXIT WHEN NOT FOUND;
+
+        INSERT INTO bl_dm.dim_store (
+            store_id,
+            store_name,
+            city_id,
+            source_id,
+            source_system,
+            source_entity,
+            insert_dt,
+            update_dt
+        )
+        VALUES (
+            rec.store_id,
+            rec.store_name,
+            rec.city_id,
+            v_source_id,
+            'bl_3nf',
+            'ce_store',
+            rec.insert_dt,
+            current_date
+        )
+        ON CONFLICT (store_id)
+        DO UPDATE SET
+            store_name = EXCLUDED.store_name,
+            city_id = EXCLUDED.city_id,
+            update_dt = current_date;
+
+        GET DIAGNOSTICS v_rows = ROW_COUNT;
+        v_total_rows := v_total_rows + v_rows;
+
+    END LOOP;
+
+    CALL bl_cl.log_event('load_dim_store',v_total_rows,'dim_store loaded');
+
+END;
+$$;
+
+--procedure for dim_customer
+
+CREATE OR REPLACE PROCEDURE bl_cl.load_dim_customer()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    rec RECORD;
+    cur REFCURSOR;
+    v_total_rows int := 0;
+    v_rows int;
+    v_source_id int;
+BEGIN
+
+    SELECT source_id
+    INTO v_source_id
+    FROM bl_3nf.ce_source
+    WHERE source_entity = 'ce_customer';
+
+    OPEN cur FOR
+        SELECT
+            c.customer_surr_id,
+            g.gender_name,
+            c.birthday
+        FROM bl_3nf.ce_customer c
+        JOIN bl_3nf.ce_gender g
+            ON c.customer_gender_id = g.gender_id;
+
+    LOOP
+        FETCH cur INTO rec;
+        EXIT WHEN NOT FOUND;
+
+        INSERT INTO bl_dm.dim_customer (
+            customer_surr_id,
+            customer_gender,
+            customer_birthday,
+            source_id,
+            source_system,
+            source_entity,
+            insert_dt,
+            update_dt
+        )
+        VALUES (
+            rec.customer_surr_id,
+            rec.gender_name,
+            rec.birthday,
+            v_source_id,
+            'bl_3nf',
+            'ce_customer',
+            current_date,
+            current_date
+        )
+        ON CONFLICT (customer_surr_id)
+        DO UPDATE SET
+            customer_gender = EXCLUDED.customer_gender,
+            customer_birthday = EXCLUDED.customer_birthday,
+            update_dt = current_date;
+
+        GET DIAGNOSTICS v_rows = ROW_COUNT;
+        v_total_rows := v_total_rows + v_rows;
+
+    END LOOP;
+
+    CALL bl_cl.log_event('load_dim_customer',v_total_rows,'dim_customer loaded');
+
+END;
+$$;
+
+--procedure for cashier:
+
+CREATE OR REPLACE PROCEDURE bl_cl.load_dim_cashier()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    rec RECORD;
+    cur REFCURSOR;
+    v_total_rows int := 0;
+    v_rows int;
+    v_source_id int;
+    v_existing RECORD;
+BEGIN
+
+    SELECT source_id
+    INTO v_source_id
+    FROM bl_3nf.ce_source
+    WHERE source_entity = 'ce_cashier';
+
+    OPEN cur FOR
+        SELECT
+            c.cashier_surr_id,
+            g.gender_name,
+            c.birthday
+        FROM bl_3nf.ce_cashier c
+        JOIN bl_3nf.ce_gender g
+            ON c.cashier_gender_id = g.gender_id;
+
+    LOOP
+        FETCH cur INTO rec;
+        EXIT WHEN NOT FOUND;
+
+        SELECT *
+        INTO v_existing
+        FROM bl_dm.dim_cashier
+        WHERE cashier_surr_id = rec.cashier_surr_id
+        AND is_active = true;
+
+        IF NOT FOUND THEN
+
+            INSERT INTO bl_dm.dim_cashier (
+                cashier_surr_id,
+                cashier_gender,
+                cashier_birthday,
+                source_id,
+                source_system,
+                source_entity,
+                insert_dt,
+                start_dt,
+                end_dt,
+                is_active
+            )
+            VALUES (
+                rec.cashier_surr_id,
+                rec.gender_name,
+                rec.birthday,
+                v_source_id,
+                'bl_3nf',
+                'ce_cashier',
+                current_date,
+                current_date,
+                DATE '9999-12-31',
+                true
+            );
+
+        ELSIF v_existing.cashier_gender <> rec.gender_name
+            OR v_existing.cashier_birthday <> rec.birthday THEN
+
+            UPDATE bl_dm.dim_cashier
+            SET end_dt = current_date,
+                is_active = false
+            WHERE cashier_surr_id = rec.cashier_surr_id
+            AND is_active = true;
+
+            INSERT INTO bl_dm.dim_cashier (
+                cashier_surr_id,
+                cashier_gender,
+                cashier_birthday,
+                source_id,
+                source_system,
+                source_entity,
+                insert_dt,
+                start_dt,
+                end_dt,
+                is_active
+            )
+            VALUES (
+                rec.cashier_surr_id,
+                rec.gender_name,
+                rec.birthday,
+                v_source_id,
+                'bl_3nf',
+                'ce_cashier',
+                current_date,
+                current_date,
+                DATE '9999-12-31',
+                true
+            );
+
+        END IF;
+
+        GET DIAGNOSTICS v_rows = ROW_COUNT;
+        v_total_rows := v_total_rows + v_rows;
+
+    END LOOP;
+
+    CALL bl_cl.log_event('load_dim_cashier',v_total_rows,'dim_cashier loaded');
+
+END;
+$$;
+
+--procedure for transactions
+CREATE OR REPLACE PROCEDURE bl_cl.load_fact_transactions()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_total_rows int := 0;
+    v_rows int;
+    v_source_id int;
+BEGIN
+
+    SELECT source_id
+    INTO v_source_id
+    FROM bl_dm.dim_source
+    WHERE source_entity = 'ce_transactions';
+
+    INSERT INTO bl_dm.fact_transactions (
+        transaction_surr_id,
+        transaction_date,
+        store_id,
+        cashier_surr_id,
+        customer_surr_id,
+        payment_method_id,
+        items_count,
+        total_amount_ngn,
+        source_id,
+        source_system,
+        source_entity,
+        insert_dt,
+        update_dt
+    )
+    SELECT
+        t.transaction_surr_id,
+        t.transaction_date,
+        t.store_id,
+        t.cashier_surr_id,
+        t.customer_surr_id,
+        t.payment_method_id,
+        t.items_count,
+        t.total_amount_ngn,
+        v_source_id,
+        'bl_3nf',
+        'ce_transactions',
+        t.insert_dt,
+        current_date
+    FROM bl_3nf.ce_transactions t
+    ON CONFLICT DO NOTHING;
+
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
+    v_total_rows := v_total_rows + v_rows;
+
+    CALL bl_cl.log_event('load_fact_transactions',v_total_rows,'fact loaded');
+
+END;
+$$;
