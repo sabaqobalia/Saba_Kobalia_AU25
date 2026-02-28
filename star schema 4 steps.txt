@@ -1,0 +1,188 @@
+STEP 1: FLATTENING LOOKUP TABLES (Attribute Translation)
+
+Let's Replace foreign keys with actual descriptive attributes.
+
+Original (Normalized):
+PRODUCTS
+
+PRODUCT_ID
+
+PRODUCT_DESC
+
+CATEGORY_ID (FK)
+
+UPDATE_DT
+
+PRODUCT_CATEGORIES (Separate lookup table)
+
+CATEGORY_ID (PK)
+
+CATEGORY_NAME
+
+UPDATE_DT
+
+Denormalized (Star Schema):
+DIM_PRODUCT
+
+PRODUCT_ID (PK)
+
+PRODUCT_DESC
+
+CATEGORY_ID (Kept for drill-down)
+
+CATEGORY_NAME (DENORMALIZED - brought from lookup table)
+
+UPDATE_DT (REMOVED - ETL metadata)
+
+We Eliminate the join between PRODUCTS and PRODUCT_CATEGORIES. Can filter by CATEGORY_NAME directly without a join.
+
+STEP 2: SNOWFLAKE COLLAPSING (Hierarchy Flattening)
+
+Now let's collapse multi-level snowflake hierarchies into a single dimension.
+
+Original (Normalized - 5 tables):
+ADDRESSES → CITIES → COUNTRIES → REGIONS
+↘ ECONOMIC_REGIONS
+
+Denormalized (Star Schema):
+DIM_CUSTOMER
+
+CUSTOMER_ID (PK)
+
+FIRST_NAME
+
+LAST_NAME
+
+EMAIL
+
+ADDRESS (DENORMALIZED - from ADDRESSES)
+
+POSTAL_CODE (DENORMALIZED - from ADDRESSES)
+
+CITY_ID (Kept for grain)
+
+COUNTRY_ID (from COUNTRIES)
+
+COUNTRY_CODE (DENORMALIZED - from COUNTRIES)
+
+REGION_ID (from REGIONS)
+
+REGION (DENORMALIZED - from REGIONS)
+
+ECONOMIC_REGION_ID (from ECONOMIC_REGIONS)
+
+ECONOMIC_REGION (DENORMALIZED - from ECONOMIC_REGIONS)
+
+PHONE (DENORMALIZED - from ADDRESSES)
+
+DIM_STORE
+
+STORE_ID (PK)
+
+MANAGER_ID
+
+ADDRESS (DENORMALIZED - from ADDRESSES)
+
+CITY_ID
+
+POSTAL_CODE (DENORMALIZED - from ADDRESSES)
+
+COUNTRY_CODE (DENORMALIZED - from COUNTRIES)
+
+REGION (DENORMALIZED - from REGIONS)
+
+ECONOMIC_REGION (DENORMALIZED - from ECONOMIC_REGIONS)
+
+PHONE (DENORMALIZED - from ADDRESSES)
+
+We replaced 5-6 table joins with a single table scan. Geographic analysis becomes a simple WHERE clause.
+
+STEP 3: REMOVING TRANSACTIONAL METADATA (ETL Attribution)
+
+Let's remove operational tracking fields not relevant to business analysis.
+
+Original (Normalized):
+PAYMENTS
+
+PAYMENT_ID
+
+CUSTOMER_ID
+
+EMPLOYEE_ID
+
+SALE_ID
+
+AMOUNT
+
+UPDATE_DT (Operational timestamp - NOT analytical)
+
+SALES
+
+SALE_ID
+
+SALES_DATE
+
+PRODUCT_ID
+
+CUSTOMER_ID
+
+STORE_ID
+
+EMPLOYEE_ID
+
+UPDATE_DT (Operational timestamp - NOT analytical)
+
+Denormalized (Star Schema):
+FACT_SALES
+
+SALE_ID (Kept as Degenerate Dimension)
+
+SALES_DATE_ID (FK to DIM_DATE)
+
+PRODUCT_ID (FK)
+
+CUSTOMER_ID (FK)
+
+STORE_ID (FK)
+
+EMPLOYEE_ID (FK)
+
+PAYMENT_ID (Kept as Degenerate Dimension)
+
+AMOUNT (MEASURE)
+
+UPDATE_DT (REMOVED - not relevant for analysis)
+
+
+
+STEP 4: DEGENERATE DIMENSION HANDLING
+
+Goal: Preserve atomic transaction identifiers without creating separate dimension tables.
+
+Original (Normalized):
+SALES (Header/Transaction table)
+PAYMENTS (Child/Line Item table)
+
+In a pure normalized model, these would require:
+DIM_SALE and DIM_PAYMENT dimension tables
+
+Denormalized (Star Schema):
+FACT_SALES
+
+SALE_ID (DEGENERATE DIMENSION - kept in fact table)
+
+PAYMENT_ID (DEGENERATE DIMENSION - kept in fact table)
+
+AMOUNT
+
+(all other foreign keys)
+
+Result: No attributes exist for SALE_ID or PAYMENT_ID beyond the ID itself. Creating DIM_SALE or DIM_PAYMENT with just an ID wastes space and join performance. Keeping them as degenerate dimensions in the fact table allows:
+
+Counting distinct sales (COUNT DISTINCT SALE_ID)
+
+Grouping by transaction
+
+Reconciling to source systems
+
+Preserving grain (1 row = 1 payment line item)

@@ -1,0 +1,81 @@
+                                    ┌─────────────────────┐
+                                    │     DIM_DATE        │
+                                    └─────────┬───────────┘
+                                              │
+                                    ┌─────────▼───────────┐
+                                    │                    │
+┌───────────────────┐     ┌─────────┴────────────┐      │
+│ DIM_PRODUCT       │     │                      │      │
+│                   │     │                     │      │
+│ PRODUCT_ID (PK)   │◄────┤   FACT_SALES        │      │
+│ PRODUCT_DESC      │     │                     │      │
+│ CATEGORY_ID (FK)  │     │ SALE_ID            │      │
+└─────────┬─────────┘     │ SALES_DATE_ID (FK) │      │
+          │               │ PRODUCT_ID (FK)     │      │
+          │               │ CUSTOMER_ID (FK)    │      │
+          ▼               │ STORE_ID (FK)       │      │
+┌───────────────────┐     │ EMPLOYEE_ID (FK)    │      │
+│ DIM_PRODUCT_      │     │ PAYMENT_ID          │      │
+│ CATEGORY          │     │ AMOUNT              │      │
+│                   │     └─────────┬───────────┘      │
+│ CATEGORY_ID (PK) │               │                  │
+│ CATEGORY_NAME    │               │                  │
+└───────────────────┘               │                  │
+                                    │                  │
+           ┌────────────────────────┼──────────────────┼─────────────────┐
+           │                        │                  │                 │
+           ▼                        ▼                  ▼                 ▼
+┌─────────────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│   DIM_CUSTOMER      │  │   DIM_STORE     │  │  DIM_EMPLOYEE   │  │  DIM_EMPLOYEE   │
+│                     │  │                 │  │                 │  │   (Manager)     │
+│ CUSTOMER_ID (PK)    │  │ STORE_ID (PK)   │  │ EMPLOYEE_ID (PK)│  │                 │
+│ FIRST_NAME          │  │ MANAGER_ID (FK) │◄─┼─┤ FIRST_NAME     │  │ EMPLOYEE_ID (PK)│
+│ LAST_NAME           │  │ ADDRESS_ID (FK) │  │ │ LAST_NAME      │  │ FIRST_NAME      │
+│ EMAIL               │  └────────┬────────┘  │ │ EMAIL          │  │ LAST_NAME       │
+│ ADDRESS_ID (FK)     │           │           │ │ STORE_ID (FK)  │  │ EMAIL           │
+└──────────┬──────────┘           │           │ │ ADDRESS_ID (FK)│  │ STORE_ID (FK)   │
+           │                      │           │ └────────┬────────┘  │ ADDRESS_ID (FK) │
+           │                      │           │          │           └────────┬────────┘
+           │                      │           │          │                    │
+           │              ┌───────▼───────┐   │  ┌───────▼───────┐    ┌───────▼───────┐
+           │              │  DIM_ADDRESS  │   │  │  DIM_ADDRESS  │    │  DIM_ADDRESS  │
+           │              │               │   │  │               │    │               │
+           │              │ ADDRESS_ID(PK)│   │  │ ADDRESS_ID(PK)│    │ ADDRESS_ID(PK)│
+           │              │ ADDRESS       │   │  │ ADDRESS       │    │ ADDRESS       │
+           │              │ CITY_ID (FK)  │   │  │ CITY_ID (FK)  │    │ CITY_ID (FK)  │
+           │              │ POSTAL_CODE   │   │  │ POSTAL_CODE   │    │ POSTAL_CODE   │
+           │              │ PHONE         │   │  │ PHONE         │    │ PHONE         │
+           │              └───────┬───────┘   │  └───────┬───────┘    └───────┬───────┘
+           │                      │           │          │                    │
+           │                      └───────────┼──────────┼────────────────────┘
+           │                                  │          │
+           │                                  ▼          ▼
+           │                           ┌────────────────────────┐
+           │                           │       DIM_CITY         │
+           │                           │                        │
+           │                           │    CITY_ID (PK)        │
+           │                           │    CITY_NAME           │
+           │                           │    COUNTRY_ID (FK)     │
+           │                           └───────────┬────────────┘
+           │                                       │
+           │                                       ▼
+           │                               ┌───────────────┐
+           │                               │  DIM_COUNTRY  │
+           │                               │               │
+           │                               │ COUNTRY_ID(PK)│
+           │                               │ COUNTRY_CODE  │
+           │                               │ REGION_ID(FK) │
+           │                               │ ECON_REG_ID(FK)│
+           │                               └───────┬───────┘
+           │                                       │
+           │                           ┌───────────┴───────────┐
+           │                           │                       │
+           ▼                           ▼                       ▼
+    ┌─────────────┐            ┌─────────────┐       ┌─────────────┐
+    │ DIM_REGION  │            │DIM_ECONOMIC_│       │DIM_ECONOMIC_│
+    │             │            │   REGION    │       │   REGION    │
+    │ REGION_ID   │            │             │       │             │
+    │ (PK)        │            │ ECON_REG_ID │       │ ECON_REG_ID │
+    │ REGION      │            │ (PK)        │       │ (PK)        │
+    │             │            │ ECON_REGION │       │ ECON_REGION │
+    └─────────────┘            └─────────────┘       └─────────────┘

@@ -1,0 +1,219 @@
+Unlike the star schema where we fully denormalize, for a snowflake schema we intentionally STOP at partial denormalization. Here are the 4 steps applied to create the snowflake schema:
+
+STEP 1: PARTIAL FLATTENING OF LOOKUP TABLES (Attribute Translation - STOPPED)
+
+Goal is to remove transactional metadata but PRESERVE lookup table foreign keys. Do NOT bring descriptive attributes into the main dimension table.
+
+Original (Normalized):
+PRODUCTS
+
+PRODUCT_ID
+
+PRODUCT_DESC
+
+CATEGORY_ID (FK)
+
+UPDATE_DT
+
+PRODUCT_CATEGORIES
+
+CATEGORY_ID (PK)
+
+CATEGORY_NAME
+
+UPDATE_DT
+
+Snowflake Schema:
+DIM_PRODUCT
+
+PRODUCT_ID (PK)
+
+PRODUCT_DESC
+
+CATEGORY_ID (FK) -- PRESERVED - not denormalized
+
+UPDATE_DT -- REMOVED (ETL metadata)
+
+DIM_PRODUCT_CATEGORY
+
+CATEGORY_ID (PK)
+
+CATEGORY_NAME
+
+UPDATE_DT -- REMOVED (ETL metadata)
+
+Why we STOP here:
+Star schema would bring CATEGORY_NAME into DIM_PRODUCT. Snowflake schema preserves the foreign key and keeps the lookup table separate. Maintains normalization to save storage when many products share few categories. Accepts some joins for hierarchical queries.
+
+STEP 2: SNOWFLAKE PRESERVATION (Hierarchy Maintenance)
+
+We keep the normalized geographic hierarchy intact. Do not collapse into a single dimension.
+
+Original (Normalized):
+ADDRESSES → CITIES → COUNTRIES → REGIONS
+↘ ECONOMIC_REGIONS
+
+Snowflake Schema (Preserved):
+DIM_ADDRESS
+
+ADDRESS_ID (PK)
+
+ADDRESS
+
+CITY_ID (FK) -- PRESERVED - references DIM_CITY
+
+POSTAL_CODE
+
+PHONE
+
+UPDATE_DT -- REMOVED
+
+DIM_CITY
+
+CITY_ID (PK)
+
+CITY_NAME
+
+COUNTRY_ID (FK) -- PRESERVED - references DIM_COUNTRY
+
+UPDATE_DT -- REMOVED
+
+DIM_COUNTRY
+
+COUNTRY_ID (PK)
+
+COUNTRY_CODE
+
+REGION_ID (FK) -- PRESERVED - references DIM_REGION
+
+ECONOMIC_REGION_ID (FK) -- PRESERVED - references DIM_ECONOMIC_REGION
+
+UPDATE_DT -- REMOVED
+
+DIM_REGION
+
+REGION_ID (PK)
+
+REGION
+
+UPDATE_DT -- REMOVED
+
+DIM_ECONOMIC_REGION
+
+ECONOMIC_REGION_ID (PK)
+
+ECONOMIC_REGION
+
+UPDATE_DT -- REMOVED
+
+Star schema collapses all 5 tables into DIM_CUSTOMER and DIM_STORE with denormalized attributes. Snowflake schema PRESERVES the entire 5-level hierarchy. Each level remains a separate physical table.We have Less data redundancy, single point of maintenance, strict hierarchy enforcement. But, queries now require 5 joins to navigate from address to economic region.
+
+Applied to all dimensions with addresses:
+DIM_CUSTOMER: ADDRESS_ID (FK) → DIM_ADDRESS
+DIM_STORE: ADDRESS_ID (FK) → DIM_ADDRESS
+DIM_EMPLOYEE: ADDRESS_ID (FK) → DIM_ADDRESS
+
+No denormalization of address attributes into these dimensions.
+
+STEP 3: REMOVING TRANSACTIONAL METADATA (ETL Attribution)
+
+Goal: Strip operational tracking fields not relevant to business analysis. This step is IDENTICAL to star schema.
+
+Original (Normalized):
+PAYMENTS
+
+PAYMENT_ID
+
+CUSTOMER_ID
+
+EMPLOYEE_ID
+
+SALE_ID
+
+AMOUNT
+
+UPDATE_DT -- Operational timestamp
+
+SALES
+
+SALE_ID
+
+SALES_DATE
+
+PRODUCT_ID
+
+CUSTOMER_ID
+
+STORE_ID
+
+EMPLOYEE_ID
+
+UPDATE_DT -- Operational timestamp
+
+Also in every other table:
+PRODUCTS.UPDATE_DT
+PRODUCT_CATEGORIES.UPDATE_DT
+EMPLOYEES.UPDATE_DT
+STORES.UPDATE_DT
+CUSTOMERS.UPDATE_DT
+ADDRESSES.UPDATE_DT
+CITIES.UPDATE_DT
+COUNTRIES.UPDATE_DT
+REGIONS.UPDATE_DT
+ECONOMIC_REGIONS.UPDATE_DT
+
+Snowflake Schema:
+FACT_SALES
+
+SALE_ID -- Degenerate Dimension
+
+SALES_DATE_ID -- FK to DIM_DATE
+
+PRODUCT_ID -- FK
+
+CUSTOMER_ID -- FK
+
+STORE_ID -- FK
+
+EMPLOYEE_ID -- FK
+
+PAYMENT_ID -- Degenerate Dimension
+
+AMOUNT -- MEASURE
+
+UPDATE_DT -- REMOVED
+
+ALL dimension tables:
+UPDATE_DT -- REMOVED from every dimension table
+
+Why this is the same:
+UPDATE_DT is operational, not analytical, regardless of schema style. Both star and snowflake remove these timestamps. 
+
+STEP 4: DEGENERATE DIMENSION HANDLING
+
+Goal: Preserve atomic transaction identifiers without creating separate dimension tables. This step is IDENTICAL to star schema.
+
+Original (Normalized):
+SALES (Transaction header)
+
+SALE_ID (PK)
+
+PAYMENTS (Transaction line items)
+
+PAYMENT_ID (PK)
+
+SALE_ID (FK)
+
+Snowflake Schema:
+FACT_SALES
+
+SALE_ID -- DEGENERATE DIMENSION (kept in fact table)
+
+PAYMENT_ID -- DEGENERATE DIMENSION (kept in fact table)
+
+AMOUNT
+
+(all other foreign keys)
+
+Why this is the same:
+No descriptive attributes exist for SALE_ID or PAYMENT_ID. Creating DIM_SALE or DIM_PAYMENT would be empty shells with just IDs. This wastes storage and adds unnecessary joins. Degenerate dimensions in the fact table are the optimal solution for both star and snowflake. Preserves grain (1 row = 1 payment line item).
