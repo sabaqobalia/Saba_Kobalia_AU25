@@ -1,0 +1,34 @@
+CREATE SCHEMA IF NOT EXISTS BL_DM;
+
+CREATE TABLE IF NOT EXISTS BL_DM.DIM_DATE (
+    transaction_date DATE PRIMARY KEY,
+    day              SMALLINT,
+    month            SMALLINT,
+    month_name       VARCHAR(10),
+    quarter          SMALLINT,
+    year             SMALLINT,
+    weekday          SMALLINT
+);
+
+INSERT INTO BL_DM.DIM_DATE (
+    transaction_date,
+    day,
+    month,
+    month_name,
+    quarter,
+    year,
+    weekday
+)
+SELECT
+    d::DATE                            AS transaction_date,
+    EXTRACT(DAY FROM d)                AS day,
+    EXTRACT(MONTH FROM d)              AS month,
+    TO_CHAR(d, 'Month')                AS month_name,
+    EXTRACT(QUARTER FROM d)            AS quarter,
+    EXTRACT(YEAR FROM d)               AS year,
+    EXTRACT(DOW FROM d)                AS weekday
+FROM generate_series(
+    DATE '2010-01-01',
+    DATE '2035-12-31',
+    INTERVAL '1 day'
+) AS d;
