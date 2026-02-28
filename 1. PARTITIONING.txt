@@ -1,0 +1,240 @@
+1.1 TASK 1: USE INHERITANCE
+
+1. Create 4-5 child tables with partitioning by eventdate column. One partition is one year.
+
+CREATE TABLE sales_info_2020
+(CHECK (eventdate >= '2020-1-1' AND eventdate <= '2020-12-31'))
+INHERITS (labs.sales_info)
+
+do this for years 2020-2026.
+
+2. Create partition function for your tables.
+
+CREATE OR REPLACE FUNCTION partition_sales_info() RETURNS trigger
+as $$
+BEGIN
+IF (new.eventdate >= '2020-01-01'::DATE AND
+new.eventdate < '2021-01-01'::DATE) THEN
+INSERT INTO labs.sales_info_2020 VALUES (new.*) ;
+ELSEIF (new.eventdate >= '2021-01-01'::DATE AND
+new.eventdate < '2022-01-01'::DATE) then
+INSERT INTO labs.sales_info_2021 VALUES (new.*) ;
+ELSEIF (new.eventdate >= '2022-01-01'::DATE AND
+new.eventdate < '2023-01-01'::DATE) then
+INSERT INTO labs.sales_info_2022 VALUES (new.*) ;
+ELSEIF (new.eventdate >= '2023-01-01'::DATE AND
+new.eventdate < '2024-01-01'::DATE) then
+INSERT INTO labs.sales_info_2023 VALUES (new.*) ;
+ELSEIF (new.eventdate >= '2024-01-01'::DATE AND
+new.eventdate < '2025-01-01'::DATE) then
+INSERT INTO labs.sales_info_2024 VALUES (new.*);
+ELSEIF (new.eventdate >= '2025-01-01'::DATE AND
+new.eventdate < '2026-01-01'::DATE) then
+INSERT INTO labs.sales_info_2025 VALUES (new.*);
+ELSEIF (new.eventdate >= '2026-01-01'::DATE AND
+new.eventdate < '2027-01-01'::DATE) then
+INSERT INTO labs.sales_info_2026 VALUES (new.*);
+
+ELSE
+RAISE EXCEPTION 'Out of range';
+END IF;
+RETURN NULL;
+END;
+$$ language plpgsql;
+
+3. Create trigger for your function and tables
+
+CREATE TRIGGER partition_sales_info_trigger
+BEFORE INSERT ON labs.sales_info
+FOR EACH ROW EXECUTE PROCEDURE partition_sales_info();
+
+
+
+5. Update some rows in SALES_INFO and set another eventdate.
+UPDATE labs.sales_info SET
+eventdate = '2028-11-11' WHERE "id" IN (50,60,55,62)
+
+ERROR:  new row for relation "sales_info_2023" violates check constraint "sales_info_2023_eventdate_check"
+Failing row contains (50, J, t, 2028-11-11). 
+
+
+
+6. Create table SALES_INFO_SIMPLE with the same structure as SALES_INFO but without
+partitioning. Insert test data from the 5th step. Compare plans of different queries:
+
+• Select all
+when selecting * from inherited table, system scans all the child tables and appends them (sc_1)
+when selecting * from simple table, system uses the simple sequential scan method (sc_2)
+
+• Select with range of dates
+when selecting from inherited table, system scans only the child tables that could possibly have values
+we need and skips inappropriate partitions.
+when selecting  from simple table, system uses the sequential scan + filter on the whole table.
+
+• Select exact date
+again, for inherited table, only the appropriate partition is scanned + parent table.
+for simple table, regular scan + equality filter
+
+• Count of all rows
+inherited table : aggregates all child tables.
+simple table: aggregates all rows from simple table.
+
+• Count of rows with range of dates
+same thing here.
+in 1st case, parent table and the matching partition are scanned.
+in 2nd case - whole table.
+
+
+1.2 TASK2: USE DECLARATIVE PARTITIONING
+
+CREATE TABLE SALES_INFO_DP (
+"id" INTEGER,
+category VARCHAR(1),
+ischeck BOOLEAN,
+eventdate DATE)
+PARTITION BY RANGE (eventdate)
+
+
+-- 2022 partition: range by year, then list by category
+CREATE TABLE SALES_INFO_DP_2022
+PARTITION OF SALES_INFO_DP
+FOR VALUES FROM ('2022-01-01') TO ('2023-01-01')
+PARTITION BY LIST (category);
+
+CREATE TABLE SALES_INFO_DP_2022_A_E
+PARTITION OF SALES_INFO_DP_2022
+FOR VALUES IN ('A','B','C','D','E');
+
+CREATE TABLE SALES_INFO_DP_2022_F_H
+PARTITION OF SALES_INFO_DP_2022
+FOR VALUES IN ('F','G','H');
+
+CREATE TABLE SALES_INFO_DP_2022_DEFAULT
+PARTITION OF SALES_INFO_DP_2022
+DEFAULT;
+
+-- 2023 partition
+CREATE TABLE SALES_INFO_DP_2023
+PARTITION OF SALES_INFO_DP
+FOR VALUES FROM ('2023-01-01') TO ('2024-01-01')
+PARTITION BY LIST (category);
+
+CREATE TABLE SALES_INFO_DP_2023_A_E
+PARTITION OF SALES_INFO_DP_2023
+FOR VALUES IN ('A','B','C','D','E');
+
+CREATE TABLE SALES_INFO_DP_2023_F_H
+PARTITION OF SALES_INFO_DP_2023
+FOR VALUES IN ('F','G','H');
+
+CREATE TABLE SALES_INFO_DP_2023_DEFAULT
+PARTITION OF SALES_INFO_DP_2023
+DEFAULT;
+
+-- 2024 partition
+CREATE TABLE SALES_INFO_DP_2024
+PARTITION OF SALES_INFO_DP
+FOR VALUES FROM ('2024-01-01') TO ('2025-01-01')
+PARTITION BY LIST (category);
+
+CREATE TABLE SALES_INFO_DP_2024_A_E
+PARTITION OF SALES_INFO_DP_2024
+FOR VALUES IN ('A','B','C','D','E');
+
+CREATE TABLE SALES_INFO_DP_2024_F_H
+PARTITION OF SALES_INFO_DP_2024
+FOR VALUES IN ('F','G','H');
+
+CREATE TABLE SALES_INFO_DP_2024_DEFAULT
+PARTITION OF SALES_INFO_DP_2024
+DEFAULT;
+
+-- 2025 partition
+CREATE TABLE SALES_INFO_DP_2025
+PARTITION OF SALES_INFO_DP
+FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
+PARTITION BY LIST (category);
+
+CREATE TABLE SALES_INFO_DP_2025_A_E
+PARTITION OF SALES_INFO_DP_2025
+FOR VALUES IN ('A','B','C','D','E');
+
+CREATE TABLE SALES_INFO_DP_2025_F_H
+PARTITION OF SALES_INFO_DP_2025
+FOR VALUES IN ('F','G','H');
+
+CREATE TABLE SALES_INFO_DP_2025_DEFAULT
+PARTITION OF SALES_INFO_DP_2025
+DEFAULT;
+
+-- 2026 partition
+CREATE TABLE SALES_INFO_DP_2026
+PARTITION OF SALES_INFO_DP
+FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
+PARTITION BY LIST (category);
+
+CREATE TABLE SALES_INFO_DP_2026_A_E
+PARTITION OF SALES_INFO_DP_2026
+FOR VALUES IN ('A','B','C','D','E');
+
+CREATE TABLE SALES_INFO_DP_2026_F_H
+PARTITION OF SALES_INFO_DP_2026
+FOR VALUES IN ('F','G','H');
+
+CREATE TABLE SALES_INFO_DP_2026_DEFAULT
+PARTITION OF SALES_INFO_DP_2026
+DEFAULT;
+
+
+
+4. Update some rows in SALES_INFO_DP and set another category.
+update SALES_INFO_DP set category = 'F' where "id" in (21,22)
+
+5. Compare plans of different queries for tables SALES_INFO_DP and SALES_INFO_SIMPLE:
+• Select all
+• Select with range of dates
+• Select exact date
+• Select exact category
+• Select a list of categories
+• Select a list of categories in exact date
+• Count of all rows
+• Count of rows with range of dates
+
+we see the same exact as in previous task.
+for partitioned table, system scans only the partitions that are needed, which reduces query time.
+for simple table, the whole table is scanned and filtered.
+this demonstrates the usefulness of partitioning.
+
+
+6. For one of the child tables with range partition by eventdate split one list partition for two
+
+
+
+CREATE TABLE SALES_INFO_DP_2022_A_C
+PARTITION OF SALES_INFO_DP_2022
+FOR VALUES IN ('A','B','C');
+
+CREATE TABLE SALES_INFO_DP_2022_D_E
+PARTITION OF SALES_INFO_DP_2022
+FOR VALUES IN ('D','E');
+
+INSERT INTO SALES_INFO_DP_2022_A_C SELECT * FROM SALES_INFO_DP_2022_A_E WHERE category IN ('A','B','C');
+INSERT INTO SALES_INFO_DP_2022_D_E SELECT * FROM SALES_INFO_DP_2022_A_E WHERE category IN ('D','E');
+
+
+DROP TABLE SALES_INFO_DP_2022_A_E;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
