@@ -1,0 +1,39 @@
+3.1 TASK 6: RECURSIVE CTE
+1. Use emp table you created before. Select all employee and his manager name and level of
+management start from president of the company
+
+
+WITH RECURSIVE emp_hierarchy AS (
+SELECT e.empno, e.ename, e.mgr, 'KING'::varchar AS mngname,1 AS lvl
+FROM emp e WHERE e.mgr IS NULL
+UNION ALL
+SELECT e.empno, e.ename, e.mgr, h.ename AS mngname,  h.lvl + 1 AS lvl
+FROM emp e
+JOIN emp_hierarchy h ON e.mgr = h.empno
+)
+SELECT *
+FROM emp_hierarchy
+ORDER BY lvl, mngname, empno;
+
+
+3.2 TASK 7: CHANGING DATA CTE
+
+
+WITH updated_orders AS (
+    UPDATE orders o
+    SET order_cost = order_cost / 2
+    WHERE order_cost BETWEEN 100 AND 1000
+    RETURNING o.order_id, o.order_cost * 2 AS old_order_cost, o.order_num
+),
+deleted_orders AS (
+    DELETE FROM orders o
+    WHERE order_cost < 50
+    RETURNING o.order_id, o.order_cost, o.order_num
+)
+
+INSERT INTO order_log(order_id, order_cost, order_num, action_type)
+SELECT u.order_id, u.old_order_cost, u.order_num, 'U'
+FROM updated_orders u
+UNION ALL
+SELECT d.order_id, d.order_cost, d.order_num, 'D'
+FROM deleted_orders d;

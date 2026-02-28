@@ -1,0 +1,41 @@
+2.1 TASK 4: CHANGING JOIN ORDER
+2. Check the plan. Describe the order of tables joining:
+EXPLAIN
+SELECT c.id2
+FROM test_joins_b b
+JOIN test_joins_a a on (b.id1 = a.id1)
+LEFT JOIN test_joins_c c on (c.id1 = b.id1);
+
+
+
+system first performs the inner join between test_joins_b and test_joins_a using a hash join. 
+after this , it joins it with test_joins_c. 
+the left join in the query is implemented as a hash right join because the planner swapped the join sides for efficiency.
+(sc_3)
+
+3. Set join_collapse_limit = 1 and recreate plan for query above. Describe changes if any. Return
+join_collapse_limit = 8.
+
+Set join_collapse_limit = 8;
+EXPLAIN
+SELECT c.id2
+FROM test_joins_b b
+JOIN test_joins_a a on (b.id1 = a.id1)
+LEFT JOIN test_joins_c c on (c.id1 = b.id1);
+
+setting join_collapse_limit = 1 disables join reordering, so system executes joins in the order written in the query.
+(sc_4)
+
+
+2.2 TASK 5: LATERAL JOIN
+2.
+SELECT s.store_id, s.store_name, o.order_id, o.order_cost,o.order_num
+FROM stores s
+JOIN LATERAL (
+        SELECT *
+        FROM orders o
+        WHERE o.order_cost < s.max_order_cost
+        ORDER BY o.order_cost DESC
+        LIMIT 10
+) o ON true
+ORDER BY s.store_id, o.order_cost DESC;
