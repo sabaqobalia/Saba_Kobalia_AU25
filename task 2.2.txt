@@ -1,0 +1,30 @@
+3. perform selects
+we can see that when we select from 'users', nothing unusual happens, but when we select from 'person', we also see rows that we inserted in 'users'.
+this is because when we read with regular FROM, program goes through all the child tables as well, and 'users' has inherited 'person'.
+but FROM ONLY allows us to only read one table only, so we get only the rows that are in 'person'
+(sc_5 to sc_7)
+
+4.Modify data in person table, check result:
+after we run
+
+UPDATE person
+SET name = 'not Bob'
+where id = 1;
+
+we see that 2 rows have been changed (terminal says "UPDATE 2")
+but, similarly to (3), we can use UPDATE ONLY to only modify rows that are in 'person' and avoid changing the inherited table.
+see sc_8.
+
+5.
+
+we ran these queries:
+
+ALTER TABLE person ADD COLUMN status integer DEFAULT 0;
+ALTER TABLE person ADD CONSTRAINT status CHECK (status in (0,1)) NO
+INHERIT;
+ALTER TABLE person ADD CONSTRAINT id UNIQUE (id, name);
+
+'person' changes in all the expected ways, but the changes to 'users' is what's interesting.
+it gets the new column "status".
+it doesn'get the CHECK constraint, because we demanded it with NO INHERIT.
+and it also doesn't get the UNIQUE constraint, because UNIQUE constraints are already not inherited by default.

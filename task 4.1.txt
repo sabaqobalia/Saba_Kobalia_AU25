@@ -1,0 +1,10 @@
+CREATE MATERIALIZED VIEW MView AS
+SELECT * FROM test_foreign_table;
+
+after deleting some rows from the file, materialized view will not automatically update, unlike regular view.
+
+REFRESH MATERIALIZED VIEW mview
+
+the query
+select count (*) from mview 
+now gives correct output
