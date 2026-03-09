@@ -1,0 +1,178 @@
+CREATE TABLE IF NOT EXISTS BL_DM.DIM_DATE (
+    transaction_date DATE PRIMARY KEY,
+    day              SMALLINT,
+    month            SMALLINT,
+    month_name       VARCHAR(10),
+    quarter          SMALLINT,
+    year             SMALLINT,
+    weekday          SMALLINT
+);
+
+INSERT INTO BL_DM.DIM_DATE (
+    transaction_date,
+    day,
+    month,
+    month_name,
+    quarter,
+    year,
+    weekday
+)
+SELECT
+    d::DATE                            AS transaction_date,
+    EXTRACT(DAY FROM d)                AS day,
+    EXTRACT(MONTH FROM d)              AS month,
+    TO_CHAR(d, 'Month')                AS month_name,
+    EXTRACT(QUARTER FROM d)            AS quarter,
+    EXTRACT(YEAR FROM d)               AS year,
+    EXTRACT(DOW FROM d)                AS weekday
+FROM generate_series(
+    DATE '1980-01-01',
+    DATE '2035-12-31',
+    INTERVAL '1 day'
+) AS d;
+
+
+CREATE TABLE IF NOT EXISTS bl_dm.dim_source (
+source_id int PRIMARY KEY,
+source_entity varchar NOT NULL,
+source_system varchar NOT NULL,
+source_desc varchar NOT NULL,
+insert_dt date NOT NULL,
+update_dt date NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS bl_dm.dim_customer (
+customer_surr_id int PRIMARY KEY,
+customer_gender varchar NOT NULL,
+customer_birthday date NOT NULL,
+source_id int NOT NULL,
+source_system varchar NOT NULL,
+source_entity varchar NOT NULL,
+insert_dt date NOT NULL,
+update_dt date NOT NULL,
+CONSTRAINT customer_bday_fk FOREIGN KEY (customer_birthday) REFERENCES bl_dm.dim_date (transaction_date),
+CONSTRAINT customer_source_fk FOREIGN KEY (source_id) REFERENCES bl_dm.dim_source (source_id)
+);
+
+CREATE TABLE IF NOT EXISTS  bl_dm.dim_cashier (
+cashier_surr_id int PRIMARY KEY,
+cashier_gender varchar NOT NULL,
+cashier_birthday date NOT NULL,
+source_id int NOT NULL,
+source_system varchar NOT NULL,
+source_entity varchar NOT NULL,
+insert_dt date NOT NULL,
+start_dt date NOT NULL,
+end_dt date NOT NULL,
+is_active boolean NOT NULL,
+CONSTRAINT cashier_bday_fk FOREIGN KEY (cashier_birthday) REFERENCES bl_dm.dim_date (transaction_date),
+CONSTRAINT cashier_source_fk FOREIGN KEY (source_id) REFERENCES bl_dm.dim_source (source_id)
+);
+
+
+CREATE TABLE IF NOT EXISTS dim_payment_method (
+	,
+payment_method_name varchar NOT NULL,
+source_id int NOT NULL,
+source_system varchar NOT NULL,
+source_entity varchar NOT NULL,
+insert_dt date NOT NULL,
+update_dt date NOT NULL,
+CONSTRAINT pm_source_fk FOREIGN KEY (source_id) REFERENCES bl_dm.dim_source (source_id)
+);
+
+CREATE TABLE IF NOT EXISTS dim_city (
+city_id int PRIMARY KEY,
+city_name varchar NOT NULL,
+source_id int NOT NULL,
+source_system varchar NOT NULL,
+source_entity varchar NOT NULL,
+insert_dt date NOT NULL,
+update_dt date NOT NULL,
+CONSTRAINT city_source_fk FOREIGN KEY (source_id) REFERENCES bl_dm.dim_source (source_id)
+);
+
+CREATE TABLE IF NOT EXISTS dim_store (
+store_id int PRIMARY KEY,
+store_name varchar NOT NULL,
+city_id int NOT NULL,
+source_id int NOT NULL,
+source_system varchar NOT NULL,
+source_entity varchar NOT NULL,
+insert_dt date NOT NULL,
+update_dt date NOT NULL,
+CONSTRAINT store_city_fk FOREIGN KEY (city_id) REFERENCES bl_dm.dim_city (city_id),
+CONSTRAINT store_source_fk FOREIGN KEY (source_id) REFERENCES bl_dm.dim_source(source_id)
+);
+
+CREATE TABLE IF NOT EXISTS fact_transactions (
+transaction_surr_id INT PRIMARY KEY,
+transaction_date DATE NOT NULL,
+store_id INT NOT NULL,
+cashier_surr_id INT NOT NULL,
+customer_surr_id INT NOT NULL,
+payment_method_id INT NOT NULL,
+items_count INT NOT NULL,
+total_amount_ngn DECIMAL NOT NULL,
+avg_price DECIMAL GENERATED ALWAYS AS (total_amount_ngn / items_count) STORED,
+source_id int NOT NULL,
+source_system varchar NOT NULL,
+source_entity varchar NOT NULL,
+insert_dt date NOT NULL,
+update_dt date NOT NULL,
+CONSTRAINT transaction_store_fk FOREIGN KEY (store_id) REFERENCES bl_dm.dim_store (store_id),
+CONSTRAINT transaction_cashier_fk FOREIGN KEY (cashier_surr_id) REFERENCES bl_dm.dim_cashier (cashier_surr_id),
+CONSTRAINT transaction_customer_fk FOREIGN KEY (customer_surr_id) REFERENCES bl_dm.dim_customer (customer_surr_id),
+CONSTRAINT transaction_pm_fk FOREIGN KEY (payment_method_id) REFERENCES bl_dm.dim_payment_method (payment_method_id),
+CONSTRAINT transaction_source_fk FOREIGN KEY (source_id) REFERENCES bl_dm.dim_source (source_id)
+);
+
+
+
+INSERT INTO bl_3nf.ce_source (
+source_entity, source_system, source_desc, insert_dt, update_dt
+) VALUES
+('ce_cashier','bl_3nf', 'Normalized table of all cashiers', current_date, current_date),
+('ce_city','bl_3nf', 'Normalized table of all cities', current_date, current_date),
+('ce_customer','bl_3nf', 'Normalized table of all customers', current_date, current_date),
+('ce_store','bl_3nf', 'Normalized table of all stores', current_date, current_date),
+('ce_payment_method','bl_3nf','Normalized table of all payment methods', current_date, current_date),;
+
+
+
+INSERT INTO dim_source  (
+source_id ,
+source_entity ,
+source_system ,
+source_desc ,
+insert_dt ,
+update_dt 
+)
+
+
+SELECT source_id ,
+source_entity ,
+source_system ,
+source_desc ,current_date, current_date 
+FROM bl_3nf.ce_source;
+
+
+INSERT INTO dim_payment_method  (
+payment_method_id,
+payment_method_name,
+source_id,
+source_system,
+source_entity,
+insert_dt,
+update_dt
+)
+
+SELECT payment_method_id, payment_method_name,
+(SELECT source_id FROM bl_3nf.ce_source WHERE source_entity = 'ce_payment_method'),
+'bl_3nf', 'ce_payment_method', current_date, current_date
+FROM bl_3nf.ce_payment_method 
+
+
+
+
+
