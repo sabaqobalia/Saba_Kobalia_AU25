@@ -1,0 +1,43 @@
+after we run the query twice
+
+EXPLAIN ANALYZE
+SELECT *
+FROM labs.test_index_plan
+WHERE load_date BETWEEN '2021-09-01 0:00' AND '2021-10-31 11:59:59'
+ORDER BY 1;
+
+we see that plans are exactly the same (seq scan on test_index_plan, same filter, same amount of rows removed by filter)
+we see that execution time becomes half of what it was. 
+this is because the program cached the memory needed for execution in RAM. 
+(sc_1 and sc_2)
+
+create b-tree index:
+CREATE INDEX idx_test_index_plan_load_date
+ON labs.test_index_plan (load_date);
+
+now the same SELECT twice, gives us the following results,
+both times the plan is to search using the index we created ( ->  Index Scan using idx_test_index_plan_load_date on test_index_plan )
+
+execution planning times are bit higher, but execution times are much lower than without index, and keep going down by each time we run SELECT.
+(sc_3 and sc_4)
+
+3. What can be done to query to use INDEX ONLY SCAN method?
+INDEX ONLY SCAN works only when system can answer the query using just the index without scanning the table.
+then we need to modify our index to include both columns of our table.
+
+DROP INDEX idx_test_index_plan_load_date;
+
+CREATE INDEX idx_test_index_plan_cover
+ON labs.test_index_plan (load_date)
+INCLUDE (num);
+
+the same SELECT takes slightly less time than the first time we ran it with the "1 row-index", but I don't personally think
+it is worth the increased memory usage of the new index.
+
+now let's try BRIN
+CREATE INDEX idx_test_index_plan_load_date_brin
+ON labs.test_index_plan USING BRIN (load_date);
+
+VACUUM ANALYZE labs.test_index_plan;
+
+not much changes here, almost same times and same effects as the b-tree index.
