@@ -1,0 +1,47 @@
+smoke_tests:
+  - name: Check lnd_s1_clients table exists
+    sql: SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'lnd_s1_clients'
+    expected: 1
+    check_type: count
+
+  - name: Check s1_clients row count
+    sql: SELECT COUNT(*) FROM lnd.lnd_s1_clients
+    expected: 711
+    check_type: count
+
+  - name: Check dwh_clients required fields are not null
+    sql: |
+      SELECT COUNT(*)
+      FROM dwh.dwh_clients
+      WHERE client_id IS NULL
+         OR first_name IS NULL
+         OR last_name IS NULL
+    expected: 0
+    check_type: count
+
+critical_tests:
+  - name: Check dwh_clients has no duplicate client_id
+    sql: |
+      SELECT client_id, COUNT(*)
+      FROM dwh.dwh_clients
+      GROUP BY client_id
+      HAVING COUNT(*) > 1
+    expected: 0
+    check_type: rows
+
+  - name: Check dwh_sales has valid client references
+    sql: |
+      SELECT s.client_id
+      FROM dwh.dwh_sales s
+      LEFT JOIN dwh.dwh_clients c ON s.client_id = c.client_id
+      WHERE c.client_id IS NULL
+    expected: 0
+    check_type: rows
+
+  - name: Check order dates are valid
+    sql: |
+      SELECT COUNT(*)
+      FROM dwh.dwh_sales
+      WHERE order_created > order_completed
+    expected: 0
+    check_type: count
